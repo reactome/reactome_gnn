@@ -78,14 +78,37 @@ def compare_graph(graph_txt, graph_json):
     return True
 
 
-def remove_by_id(graph_dict, id):
-    # TODO: Implement this
-    pass
+def remove_by_id(graph_dict, parent_dict, id):
+    # Optimize with deque instead of list
+    queue = []
+    visited = []
+    visited.append(id)
+    queue.append(id)
+    while queue:
+        s = queue.pop(0)
+        for child in graph_dict[s]:
+            if child not in visited:
+                visited.append(child)
+                queue.append(child)
+    for node in reversed(visited):
+        for parent in parent_dict[node]:
+            try:
+                graph_dict[parent].remove(node)
+            except:
+                pass  # The parent node has already been removed
+        graph_dict.pop(node)
 
 
-def remove_by_name(graph_dict, name):
-    # TODO: Implement this
-    pass
+def remove_by_name(graph_dict, parent_dict, name, name_to_id):
+    id = name_to_id[name]
+    remove_by_id(graph_dict, parent_dict, id)
+    
+
+def get_name_to_id(pathway_info):
+    name_to_id = {}
+    for id, info in pathway_info.items():
+        name_to_id[info.name] = id
+    return name_to_id
 
 
 if __name__ == '__main__':
