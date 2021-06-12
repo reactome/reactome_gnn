@@ -1,28 +1,34 @@
 import os
 import json
+import urllib.request
 from collections import defaultdict, deque, namedtuple
 
 import networkx as nx
 import matplotlib.pyplot as plt
+from reactome2py import fiviz, analysis
 
 
 class Network:
     
     Info = namedtuple('Info', ['name', 'species', 'type', 'diagram'])
 
-    def __init__(self, txt_path='data/ReactomePathwaysRelation.txt', json_path='data/9606'):
-        self.graph_txt = self.parse_txt(txt_path)
-        self.graph_dict, self.pathway_info, self.parent_dict = self.parse_json(json_path)
+    def __init__(self, txt_url='https://reactome.org/download/current/ReactomePathwaysRelation.txt',
+                 json_url='https://reactome.org/ContentService/data/eventsHierarchy/9606'):
+        self.graph_txt = self.parse_txt(txt_url)
+        self.graph_dict, self.pathway_info, self.parent_dict = self.parse_json(json_url)
         self.name_to_id = self.get_name_to_id()
+        self.markers = 'RAS,MAP,IL10,EGF,EGFR,STAT'
+        self.weights = {}
         self.graph_nx = None
         # TODO: After removal of a subtree, graph_nx is not updated
         
-    def parse_txt(self, txt_path):
+    def parse_txt(self, txt_url):
         self.graph_txt = defaultdict(list)
         found = False
-        with open(txt_path) as f:
+        with urllib.request.urlopen(txt_url) as f:
             lines = f.readlines()
             for line in lines:
+                line = line.decode('utf-8')
                 stid1, stid2 = line.strip().split()
                 if not 'R-HSA' in stid1:
                     if found:
@@ -32,8 +38,8 @@ class Network:
                 self.graph_txt[stid1].append(stid2)
         return self.graph_txt
 
-    def parse_json(self, json_path):
-        with open(json_path) as f:
+    def parse_json(self, json_url):
+        with urllib.request.urlopen(json_url) as f:
             tree_list = json.load(f)
         graph_dict = defaultdict(list)
         parent_dict = defaultdict(list)
@@ -109,3 +115,19 @@ class Network:
             self.to_networkx()
         nx.draw(self.graph_nx, node_size=2, width=0.2, arrowsize=2)
         plt.savefig(fig_path)
+
+    def enrichment_analysis(self):        
+        result = analysis.identifiers(ids=self.markers, interactors=False, page_size='1', page='1', species='Homo Sapiens', sort_by='ENTITIES_FDR', order='ASC', resource='TOTAL', p_value='1', include_disease=False, min_entities=None, max_entities=None, projection=True)
+        token = result['summary']['token']
+        token_result = analysis.token(token, species='Homo sapiens', page_size='-1', page='-1', sort_by='ENTITIES_FDR', order='ASC', resource='TOTAL', p_value='1', include_disease=False, min_entities=None, max_entities=None)
+        return [p['stId'] for p in token_result['pathways']]
+
+    def set_weights(self, mode):
+        assert mode in (1, 2, 3), "Mode has to be 1, 2, or 3."
+        if mode == 1:
+            stids = self.enrichment_analysis()
+        if mode == 2:
+            stids = fiviz.ehld_stids()
+        if mode == 3:
+            stids = fiviz.sbgn_stids()
+        self.weights = {key: 1 if key in stids else 0 for key in self.graph_dict.keys()}
