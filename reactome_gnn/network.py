@@ -18,9 +18,19 @@ class Network:
         self.graph_dict, self.pathway_info, self.parent_dict = self.parse_json(json_url)
         self.name_to_id = self.get_name_to_id()
         self.markers = 'RAS,MAP,IL10,EGF,EGFR,STAT'
-        self.weights = {}
+        self.weights = {key: 0 for key in self.pathway_info.keys()}
+        self.node_attributes = {}
         self.graph_nx = None
         # TODO: After removal of a subtree, graph_nx is not updated
+
+    def set_node_attributes(self):
+        for key in self.pathway_info.keys():
+            self.node_attributes[key] = {
+                'stid': key,
+                'name': self.pathway_info[key].name,
+                'parent': self.parent_dict[key],
+                'weight': self.weights[key]
+            }
         
     def parse_txt(self, txt_url):
         self.graph_txt = defaultdict(list)
@@ -102,12 +112,25 @@ class Network:
             self.name_to_id[info.name] = id
         return self.name_to_id
 
-    def to_networkx(self, type='txt'):
+    def to_networkx(self, type='json'):
         self.graph_nx = nx.DiGraph()
+        stids, names, parents, weights = {}, {}, {}, {}
         graph = self.graph_txt if type == 'txt' else self.graph_dict
         for key, values in graph.items():
             for value in values:
                 self.graph_nx.add_edge(key, value)
+
+        # TODO: Optimize this, too many of those values are calculated multiple times
+        for key, value in self.node_attributes.items():
+            stids[key] = value['stid']
+            names[key] = value['name']
+            parents[key] = value['parent']
+            weights[key] = value['weight']
+
+        nx.set_node_attributes(self.graph_nx, stids, 'stid')
+        nx.set_node_attributes(self.graph_nx, names, 'name')
+        nx.set_node_attributes(self.graph_nx, parents, 'parent')
+        nx.set_node_attributes(self.graph_nx, weights, 'weight')
         return self.graph_nx
 
     def visualize(self, fig_path='data/graph.png'):
@@ -130,4 +153,4 @@ class Network:
             stids = fiviz.ehld_stids()
         if mode == 3:
             stids = fiviz.sbgn_stids()
-        self.weights = {key: 1 if key in stids else 0 for key in self.graph_dict.keys()}
+        self.weights = {key: 1 if key in stids else 0 for key in self.pathway_info.keys()}
