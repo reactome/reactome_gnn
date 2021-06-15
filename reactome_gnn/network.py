@@ -17,7 +17,7 @@ class Network:
         self.graph_txt = self.parse_txt(txt_url)
         self.graph_dict, self.pathway_info, self.parent_dict = self.parse_json(json_url)
         self.name_to_id = self.get_name_to_id()
-        self.markers = 'RAS,MAP,IL10,EGF,EGFR,STAT'
+        # self.markers = 'RAS,MAP,IL10,EGF,EGFR,STAT'
         self.weights = {key: 0 for key in self.pathway_info.keys()}
         self.node_attributes = {}
         self.graph_nx = None
@@ -138,19 +138,30 @@ class Network:
             self.to_networkx()
         nx.draw(self.graph_nx, node_size=2, width=0.2, arrowsize=2)
         plt.savefig(fig_path)
-
-    def enrichment_analysis(self):        
-        result = analysis.identifiers(ids=self.markers, interactors=False, page_size='1', page='1', species='Homo Sapiens', sort_by='ENTITIES_FDR', order='ASC', resource='TOTAL', p_value='1', include_disease=False, min_entities=None, max_entities=None, projection=True)
+        
+    def enrichment_analysis(self, ids):
+        result = analysis.identifiers(ids=ids, interactors=False, page_size='1', page='1', species='Homo Sapiens', sort_by='ENTITIES_FDR', order='ASC', resource='TOTAL', p_value='1', include_disease=False, min_entities=None, max_entities=None, projection=True)
         token = result['summary']['token']
         token_result = analysis.token(token, species='Homo sapiens', page_size='-1', page='-1', sort_by='ENTITIES_FDR', order='ASC', resource='TOTAL', p_value='1', include_disease=False, min_entities=None, max_entities=None)
-        return [p['stId'] for p in token_result['pathways']]
+        stids = [p['stId'] for p in token_result['pathways']]
+        fdrs = [p['entities']['fdr'] for p in token_result['pathways']]
+        fdrs = [round(fdr, 4) for fdr in fdrs]
+        return stids, fdrs
 
-    def set_weights(self, mode):
-        assert mode in (1, 2, 3), "Mode has to be 1, 2, or 3."
-        if mode == 1:
-            stids = self.enrichment_analysis()
-        if mode == 2:
-            stids = fiviz.ehld_stids()
-        if mode == 3:
-            stids = fiviz.sbgn_stids()
-        self.weights = {key: 1 if key in stids else 0 for key in self.pathway_info.keys()}
+    def set_weights(self, ids='EGF,EGFR', mode=None):
+        stids, fdrs = self.enrichment_analysis(ids)
+        fdrs_dict = {}
+        if mode == 'EHLD':
+            ehld_stids = fiviz.ehld_stids()
+            for stid, fdr in zip(stids, fdrs):
+                if stid in ehld_stids:
+                    fdrs_dict[stid] = fdr
+        elif mode == 'SBGN':
+            sbgn_stids = fiviz.sbgn_stids()
+            for stid, fdr in zip(stids, fdrs):
+                if stid in sbgn_stids:
+                    fdrs_dict[stid] = fdr
+        else:
+            fdrs_dict = {stid: fdr for stid, fdr in zip(stids, fdrs)}
+        
+        self.weights = {stid: fdrs_dict[stid] if stid in fdrs_dict else 0 for stid in self.pathway_info.keys()}
