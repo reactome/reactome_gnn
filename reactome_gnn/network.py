@@ -107,10 +107,11 @@ class Network:
         self.remove_by_id(id)
 
     def get_name_to_id(self):
-        self.name_to_id = {}
+        name_to_id = {}
+        print(len(self.pathway_info))
         for id, info in self.pathway_info.items():
-            self.name_to_id[info.name] = id
-        return self.name_to_id
+            name_to_id[info.name] = id
+        return name_to_id
 
     def to_networkx(self, type='json'):
         self.graph_nx = nx.DiGraph()
