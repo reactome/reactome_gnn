@@ -1,9 +1,6 @@
 from collections import defaultdict
-
 import networkx as nx
-
 from reactome_gnn import network
-
 
 graph = network.Network()
 
@@ -71,17 +68,19 @@ def test_remove_by_id():
     assert id not in graph.graph_dict
 
 
-def test_id_child_not_present():
-    child_id = 'R-HSA-202733'
-    assert child_id not in graph.graph_dict
-
-
 def test_remove_by_name():
-    name = 'Disease'
+    name = 'Signal Transduction'
     graph.remove_by_name(name)
     assert name not in graph.graph_dict
 
 
+def test_id_child_not_present():
+    # ok for now - but lets add these manually as I mentioned instead of testing them
+    child_id = 'R-HSA-202733'
+    assert child_id not in graph.graph_dict
+
+
 def test_name_child_not_present():
+    # ok for now - lets add these manually as I mentioned instead of testing them
     child_id = 'R-HSA-5663205'
     assert child_id not in graph.graph_dict
