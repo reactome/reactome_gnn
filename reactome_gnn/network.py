@@ -1,41 +1,38 @@
-import os
+import math
 import json
 import urllib.request
-from collections import defaultdict, deque, namedtuple
+from collections import defaultdict, namedtuple
+from datetime import datetime
 
 import networkx as nx
-import matplotlib.pyplot as plt
-from reactome2py import fiviz, analysis
+from networkx.algorithms.traversal.depth_first_search import dfs_tree
 
 
 class Network:
     
     Info = namedtuple('Info', ['name', 'species', 'type', 'diagram'])
 
-    def __init__(self, txt_url='https://reactome.org/download/current/ReactomePathwaysRelation.txt',
-                 json_url='https://reactome.org/ContentService/data/eventsHierarchy/9606'):
-        self.graph_txt = self.parse_txt(txt_url)
-        self.graph_dict, self.pathway_info, self.parent_dict = self.parse_json(json_url)
-        self.name_to_id = self.get_name_to_id()
-        # self.markers = 'RAS,MAP,IL10,EGF,EGFR,STAT'
-        self.weights = {key: 0 for key in self.pathway_info.keys()}
-        self.node_attributes = {}
-        self.graph_nx = None
-        # TODO: After removal of a subtree, graph_nx is not updated
-
-    def set_node_attributes(self):
-        for key in self.pathway_info.keys():
-            self.node_attributes[key] = {
-                'stid': key,
-                'name': self.pathway_info[key].name,
-                'parent': self.parent_dict[key],
-                'weight': self.weights[key]
-            }
+    def __init__(self, ea_result, study=None):
+        self.txt_url = 'https://reactome.org/download/current/ReactomePathwaysRelation.txt'
+        self.json_url = 'https://reactome.org/ContentService/data/eventsHierarchy/9606'
+        if study is not None:
+            self.study = study
+        else:
+            time_now = datetime.now().strftime('%Y-%b-%d-%H-%M')
+            study = time_now
+        self.txt_adjacency = self.parse_txt()
+        self.json_adjacency, self.pathway_info = self.parse_json()
+        self.weights = self.set_weights(ea_result)
+        self.name_to_id = self.set_name_to_id()
+        self.graph_nx = self.to_networkx()
         
-    def parse_txt(self, txt_url):
-        self.graph_txt = defaultdict(list)
+    def parse_txt(self,):
+        """
+        Given the URL to the TXT file, parse that file and create an adjacency list in the form of a dictionary.
+        """
+        txt_adjacency = defaultdict(list)
         found = False
-        with urllib.request.urlopen(txt_url) as f:
+        with urllib.request.urlopen(self.txt_url) as f:
             lines = f.readlines()
             for line in lines:
                 line = line.decode('utf-8')
@@ -45,21 +42,31 @@ class Network:
                         break
                     else:
                         continue
-                self.graph_txt[stid1].append(stid2)
-        return self.graph_txt
+                txt_adjacency[stid1].append(stid2)
+        txt_adjacency = dict(txt_adjacency)
+        return txt_adjacency
 
-    def parse_json(self, json_url):
-        with urllib.request.urlopen(json_url) as f:
+    def parse_json(self):
+        """
+        Given the URL to the JSON file, parse that file and create an adjacency list in the form of a dictionary.
+        It also creates a pathway_info dictionary in which the information from the JSON file is stored for each node.
+        """
+        with urllib.request.urlopen(self.json_url) as f:
             tree_list = json.load(f)
-        graph_dict = defaultdict(list)
-        parent_dict = defaultdict(list)
+        json_adjacency = defaultdict(list)
         pathway_info = {}
         for tree in tree_list:
-            parent_dict[tree['stId']] = [None]
-            self.recursive(tree, graph_dict, pathway_info, parent_dict)
-        return graph_dict, pathway_info, parent_dict
+            self.recursive(tree, json_adjacency, pathway_info)
+        json_adjacency = dict(json_adjacency)
+        return json_adjacency, pathway_info
 
-    def recursive(self, tree, graph_dict, pathway_info, parent_dict):
+    def recursive(self, tree, json_adjacency, pathway_info):
+        """
+        A recursive function that parser the nested JSON file and builds that graph form the bottom up. 
+        Similar functionality could be achieved with DFS/BFS. However in the previous version of code the parents
+        (predecessors) for each node were also stored in a dictionary, which helped with the node removal.
+        Considering that now the node removal is done through NetworkX, there is no need for parents dictionary.
+        """
         id = tree['stId']
         try:
             pathway_info[id] = Network.Info(tree['name'], tree['species'], tree['type'], tree['diagram'])
@@ -70,99 +77,99 @@ class Network:
         except KeyError:
             return
         for child in children:
-            graph_dict[id].append(child['stId'])
-            parent_dict[child['stId']].append(id)
-            self.recursive(child, graph_dict, pathway_info, parent_dict)
+            json_adjacency[id].append(child['stId'])
+            self.recursive(child, json_adjacency, pathway_info)
 
-    def compare_graph(self):
-        # txt-keys should be a subset of json-keys
-        if not set(self.graph_txt.keys()).issubset(self.graph_dict.keys()):
+    def compare_graphs(self):
+        """
+        Function that shows whether the txt-keys are a subset of json-keys.
+        However, some of the nodes form the Disease tree are not included in the JSON file,
+        but are included in the TXT file.
+        """
+        if not set(self.txt_adjacency.keys()).issubset(self.json_adjacency.keys()):
             return False
-        for key, value in self.graph_txt.items():
-            if len(value) != len(set(value) & set(self.graph_dict[key])):
-                print(set(value) - set(self.graph_dict[key]))
-                print(set(self.graph_dict[key]) - set(value))
+        for key, value in self.txt_adjacency.items():
+            if len(value) != len(set(value) & set(self.json_adjacency[key])):
+                print(set(value) - set(self.json_adjacency[key]))
+                print(set(self.json_adjacency[key]) - set(value))
                 return False
         return True
 
-    def remove_by_id(self, id):
-        queue = deque([id])
-        visited = [id]
-        while queue:
-            s = queue.popleft()
-            for child in self.graph_dict[s]:
-                if child not in visited:
-                    visited.append(child)
-                    queue.append(child)
-        for node in reversed(visited):
-            for parent in self.parent_dict[node]:
-                try:
-                    self.graph_dict[parent].remove(node)
-                except:
-                    pass  # The parent node has already been removed or doesn't exist (top pathway)
-            self.graph_dict.pop(node)
+    def set_weights(self, ea_result):
+        """
+        Creates weights dictionary which includes information for all the human pathways.
+        Those pathways which are returned by the enrichment analysis simply get their p-value and significance copied.
+        Those pathways that were not returned, have their significance set to 'not-found'.
 
-    def remove_by_name(self, name):
-        id = self.name_to_id[name]
-        self.remove_by_id(id)
+        ----------------------------------
+        How do I specifiy the p-value for the not-found pathways? Maybe 1.0?
+        Here I put math.inf just as a placeholder.
+        ----------------------------------
+        """
+        weights = {}
+        for stid in self.pathway_info.keys():
+            if stid in ea_result.keys():
+                weights[stid] = ea_result[stid].copy()
+            else:
+                weights[stid] = {'p_value': math.inf, 'significance': 'not-found'}
+        return weights
 
-    def get_name_to_id(self):
+    def set_node_attributes(self):
+        """
+        Saves the required node attributes requires for the NetworkX graph into a dictionaries.
+        Helps with creating the NetworkX object.
+        """
+        stids, names, weights, significances = {}, {}, {}, {}
+        for stid in self.pathway_info.keys():
+            stids[stid] = stid
+            names[stid] = self.pathway_info[stid].name
+            weights[stid] = self.weights[stid]['p_value']
+            significances[stid] = self.weights[stid]['significance']
+        return stids, names, weights, significances
+
+    def set_name_to_id(self):
+        """
+        Cretes a dictionary which maps all the names to the stIds of the pathways.
+        This is useful for when we want to remove a node by specifying a pathway's name instead of ID.
+
+        ----------------------------------
+        Issue: some nodes have the same name but different ID.
+        ----------------------------------
+        """
         name_to_id = {}
-        print(len(self.pathway_info))
         for id, info in self.pathway_info.items():
             name_to_id[info.name] = id
         return name_to_id
 
     def to_networkx(self, type='json'):
-        self.graph_nx = nx.DiGraph()
-        stids, names, parents, weights = {}, {}, {}, {}
-        graph = self.graph_txt if type == 'txt' else self.graph_dict
+        """
+        Creates the NetworkX DiGraph by iterating over an adjecancy list created from parsing the JSON file.
+        """
+        graph_nx = nx.DiGraph()
+        graph = self.json_adjacency if type == 'json' else self.txt_adjacency
         for key, values in graph.items():
             for value in values:
-                self.graph_nx.add_edge(key, value)
+                graph_nx.add_edge(key, value)
 
-        # TODO: Optimize this, too many of those values are calculated multiple times
-        for key, value in self.node_attributes.items():
-            stids[key] = value['stid']
-            names[key] = value['name']
-            parents[key] = value['parent']
-            weights[key] = value['weight']
+        stids, names, weights, significances = self.set_node_attributes()
 
-        nx.set_node_attributes(self.graph_nx, stids, 'stid')
-        nx.set_node_attributes(self.graph_nx, names, 'name')
-        nx.set_node_attributes(self.graph_nx, parents, 'parent')
-        nx.set_node_attributes(self.graph_nx, weights, 'weight')
-        return self.graph_nx
+        nx.set_node_attributes(graph_nx, stids, 'stId')
+        nx.set_node_attributes(graph_nx, names, 'name')
+        nx.set_node_attributes(graph_nx, weights, 'weight')
+        nx.set_node_attributes(graph_nx, significances, 'significance')
 
-    def visualize(self, fig_path='data/graph.png'):
-        if self.graph_nx is None:
-            self.to_networkx()
-        nx.draw(self.graph_nx, node_size=2, width=0.2, arrowsize=2)
-        plt.savefig(fig_path)
-        
-    def enrichment_analysis(self, ids):
-        result = analysis.identifiers(ids=ids, interactors=False, page_size='1', page='1', species='Homo Sapiens', sort_by='ENTITIES_FDR', order='ASC', resource='TOTAL', p_value='1', include_disease=False, min_entities=None, max_entities=None, projection=True)
-        token = result['summary']['token']
-        token_result = analysis.token(token, species='Homo sapiens', page_size='-1', page='-1', sort_by='ENTITIES_FDR', order='ASC', resource='TOTAL', p_value='1', include_disease=False, min_entities=None, max_entities=None)
-        stids = [p['stId'] for p in token_result['pathways']]
-        fdrs = [p['entities']['fdr'] for p in token_result['pathways']]
-        fdrs = [round(fdr, 4) for fdr in fdrs]
-        return stids, fdrs
+        return graph_nx
 
-    def set_weights(self, ids='EGF,EGFR', mode=None):
-        stids, fdrs = self.enrichment_analysis(ids)
-        fdrs_dict = {}
-        if mode == 'EHLD':
-            ehld_stids = fiviz.ehld_stids()
-            for stid, fdr in zip(stids, fdrs):
-                if stid in ehld_stids:
-                    fdrs_dict[stid] = fdr
-        elif mode == 'SBGN':
-            sbgn_stids = fiviz.sbgn_stids()
-            for stid, fdr in zip(stids, fdrs):
-                if stid in sbgn_stids:
-                    fdrs_dict[stid] = fdr
-        else:
-            fdrs_dict = {stid: fdr for stid, fdr in zip(stids, fdrs)}
-        
-        self.weights = {stid: fdrs_dict[stid] if stid in fdrs_dict else 0 for stid in self.pathway_info.keys()}
+    def remove_by_id(self, stid):
+        """
+        Removes the subtree which has the specified stId as its root.
+        """
+        subtree = list(dfs_tree(self.graph_nx, stid))
+        self.graph_nx.remove_nodes_from(subtree)
+
+    def remove_by_name(self, name):
+        """
+        Removes the subtree which has the specified name as its root.
+        """
+        id = self.name_to_id[name]
+        self.remove_by_id(id)
