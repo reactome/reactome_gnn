@@ -15,18 +15,7 @@ setup(
     author='Lovro Vrcek',
     author_email='vrcek.lovro@gmail.com',
     license='Apache',
-  
     packages=find_packages(),
-    entry_points={
-
-    },
-    install_requires=[
-
-    ],
     tests_require=['pytest'],
-    classifiers=[
-
-    ],
-    platforms=['any'],
     python_requires='>=3.8',
 )
