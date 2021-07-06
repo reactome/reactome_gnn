@@ -26,7 +26,7 @@ class Network:
         self.name_to_id = self.set_name_to_id()
         self.graph_nx = self.to_networkx()
         
-    def parse_txt(self,):
+    def parse_txt(self):
         """
         Given the URL to the TXT file, parse that file and create an adjacency list in the form of a dictionary.
         """
