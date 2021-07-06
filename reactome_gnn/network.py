@@ -12,7 +12,7 @@ class Network:
     
     Info = namedtuple('Info', ['name', 'species', 'type', 'diagram'])
 
-    def __init__(self, ea_result, study=None):
+    def __init__(self, ea_result=None, study=None):
         self.txt_url = 'https://reactome.org/download/current/ReactomePathwaysRelation.txt'
         self.json_url = 'https://reactome.org/ContentService/data/eventsHierarchy/9606'
         if study is not None:
@@ -22,7 +22,10 @@ class Network:
             study = time_now
         self.txt_adjacency = self.parse_txt()
         self.json_adjacency, self.pathway_info = self.parse_json()
-        self.weights = self.set_weights(ea_result)
+        if ea_result is not None:
+            self.weights = self.set_weights(ea_result)
+        else:
+            self.weights = None
         self.name_to_id = self.set_name_to_id()
         self.graph_nx = self.to_networkx()
         
@@ -123,8 +126,8 @@ class Network:
         for stid in self.pathway_info.keys():
             stids[stid] = stid
             names[stid] = self.pathway_info[stid].name
-            weights[stid] = self.weights[stid]['p_value']
-            significances[stid] = self.weights[stid]['significance']
+            weights[stid] = 1.0 if self.weights is None else self.weights[stid]['p_value']
+            significances[stid] = 'not-found' if self.weights is None else self.weights[stid]['significance']
         return stids, names, weights, significances
 
     def set_name_to_id(self):
@@ -173,3 +176,15 @@ class Network:
         """
         id = self.name_to_id[name]
         self.remove_by_id(id)
+
+    def add_significance_by_stid(self, stid_list):
+        for stid in stid_list:
+            try:
+                self.graph_nx.nodes[stid]['significance'] = 'significant'
+                self.graph_nx.nodes[stid]['weight'] = 0.0
+            except KeyError:
+                continue
+
+    def add_significance_by_name(self, name_list):
+        stid_list = [self.name_to_id[name] for name in name_list]
+        self.add_significance_by_stid(stid_list)
