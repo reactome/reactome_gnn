@@ -12,7 +12,7 @@ class Network:
     
     Info = namedtuple('Info', ['name', 'species', 'type', 'diagram'])
 
-    def __init__(self, ea_result, study=None):
+    def __init__(self, ea_result=None, study=None):
         self.txt_url = 'https://reactome.org/download/current/ReactomePathwaysRelation.txt'
         self.json_url = 'https://reactome.org/ContentService/data/eventsHierarchy/9606'
         if study is not None:
@@ -22,13 +22,22 @@ class Network:
             study = time_now
         self.txt_adjacency = self.parse_txt()
         self.json_adjacency, self.pathway_info = self.parse_json()
-        self.weights = self.set_weights(ea_result)
+        if ea_result is not None:
+            self.weights = self.set_weights(ea_result)
+        else:
+            self.weights = None
         self.name_to_id = self.set_name_to_id()
         self.graph_nx = self.to_networkx()
         
-    def parse_txt(self,):
+    def parse_txt(self):
         """
-        Given the URL to the TXT file, parse that file and create an adjacency list in the form of a dictionary.
+        Given the URL to the TXT file, parse that file and create an
+        adjacency list in the form of a dictionary.
+
+        Returns
+        -------
+        dict
+            Adjacency list for the graph parsed from the TXT file
         """
         txt_adjacency = defaultdict(list)
         found = False
@@ -48,8 +57,17 @@ class Network:
 
     def parse_json(self):
         """
-        Given the URL to the JSON file, parse that file and create an adjacency list in the form of a dictionary.
-        It also creates a pathway_info dictionary in which the information from the JSON file is stored for each node.
+        Given the URL to the JSON file, parse that file and create an
+        adjacency list in the form of a dictionary. It also creates a
+        pathway_info dictionary in which the information from the JSON
+        file is stored for each node.
+
+        Returns
+        -------
+        dict
+            Adjacency list for the graph parsed from the JSON file
+        dict
+            Dictionary where information about each node is stored
         """
         with urllib.request.urlopen(self.json_url) as f:
             tree_list = json.load(f)
@@ -61,11 +79,20 @@ class Network:
         return json_adjacency, pathway_info
 
     def recursive(self, tree, json_adjacency, pathway_info):
-        """
-        A recursive function that parser the nested JSON file and builds that graph form the bottom up. 
-        Similar functionality could be achieved with DFS/BFS. However in the previous version of code the parents
-        (predecessors) for each node were also stored in a dictionary, which helped with the node removal.
-        Considering that now the node removal is done through NetworkX, there is no need for parents dictionary.
+        """A recursive function that parser the nested JSON file.
+
+        Parameters
+        ----------
+        tree : dict
+            Nested dictionary obtained by parsing the JSON file
+        json_adjacency : dict
+            Adjacency list for the graph parsed from the JSON file
+        pathway_info : dict
+            Dictionary where information about each node is stored
+        
+        Returns
+        -------
+        None
         """
         id = tree['stId']
         try:
@@ -81,10 +108,17 @@ class Network:
             self.recursive(child, json_adjacency, pathway_info)
 
     def compare_graphs(self):
-        """
-        Function that shows whether the txt-keys are a subset of json-keys.
-        However, some of the nodes form the Disease tree are not included in the JSON file,
-        but are included in the TXT file.
+        """Return whether the txt-keys are a subset of json-keys.
+
+        **Note**:
+        Some of the nodes from the Disease tree are not
+        included in the JSON file, but are included in the TXT file.
+        Which is why this function doesn't work perferctly.
+
+        Returns
+        -------
+        bool
+            Whether the TXT-graph is a subset of JSON-graph
         """
         if not set(self.txt_adjacency.keys()).issubset(self.json_adjacency.keys()):
             return False
@@ -96,15 +130,29 @@ class Network:
         return True
 
     def set_weights(self, ea_result):
-        """
-        Creates weights dictionary which includes information for all the human pathways.
-        Those pathways which are returned by the enrichment analysis simply get their p-value and significance copied.
-        Those pathways that were not returned, have their significance set to 'not-found'.
+        """Set weights for each node in the human pathway graph.
+        
+        The pathways which are returned by the enrichment analysis
+        simply get their p-value and significance copied. The pathways
+        that were not returned, have their significance set to
+        'not-found'.
 
-        ----------------------------------
-        How do I specifiy the p-value for the not-found pathways? Maybe 1.0?
-        Here I put math.inf just as a placeholder.
-        ----------------------------------
+        **Note**:
+        How do I specifiy the p-value for the not-found pathways?
+        Maybe 1.0? Here I put math.inf just as a placeholder.
+
+        Parameters
+        ----------
+        ea_results : dict
+            Dictionary where the p-value and significance are stored
+            for each pathways returned by the enrichment analysis.
+
+        Returns
+        -------
+        dict
+            Expanded dictionary with weights for all the pathways in
+            the human pathway network, instead of just those returned
+            by the enrichment nanalysis
         """
         weights = {}
         for stid in self.pathway_info.keys():
@@ -115,26 +163,43 @@ class Network:
         return weights
 
     def set_node_attributes(self):
-        """
-        Saves the required node attributes requires for the NetworkX graph into a dictionaries.
-        Helps with creating the NetworkX object.
+        """Return dictionaries with node attributes for NetworkX graph.
+
+        Four values are used as node attributes in the NetworkX graph
+        ---stid, name, weight, significance. These values are stored
+        into four different dictionaries for all the nodes in the
+        graph, which helps with creation of the NetworkX object.
+
+        Returns
+        -------
+        dict
+            Dictionary where stids of all the nodes are stored
+        dict
+            Dictionary where names of all the nodes are stored
+        dict
+            Dictionary where weights of all the nodes are stored
+        dict
+            Dictionary where significances of all the nodes are stored
         """
         stids, names, weights, significances = {}, {}, {}, {}
         for stid in self.pathway_info.keys():
             stids[stid] = stid
             names[stid] = self.pathway_info[stid].name
-            weights[stid] = self.weights[stid]['p_value']
-            significances[stid] = self.weights[stid]['significance']
+            weights[stid] = 1.0 if self.weights is None else self.weights[stid]['p_value']
+            significances[stid] = 'not-found' if self.weights is None else self.weights[stid]['significance']
         return stids, names, weights, significances
 
     def set_name_to_id(self):
-        """
-        Cretes a dictionary which maps all the names to the stIds of the pathways.
-        This is useful for when we want to remove a node by specifying a pathway's name instead of ID.
+        """Return dictionary mapping the names to stids
 
-        ----------------------------------
+        **Note**:
         Issue: some nodes have the same name but different ID.
-        ----------------------------------
+
+        Returns
+        -------
+        dict
+            Dictionary where the names of the nodes are keys, and
+            the stids are the values
         """
         name_to_id = {}
         for id, info in self.pathway_info.items():
@@ -142,9 +207,7 @@ class Network:
         return name_to_id
 
     def to_networkx(self, type='json'):
-        """
-        Creates the NetworkX DiGraph by iterating over an adjecancy list created from parsing the JSON file.
-        """
+        """Creates the NetworkX DiGraph by from the json-adjacency."""
         graph_nx = nx.DiGraph()
         graph = self.json_adjacency if type == 'json' else self.txt_adjacency
         for key, values in graph.items():
@@ -161,15 +224,29 @@ class Network:
         return graph_nx
 
     def remove_by_id(self, stid):
-        """
-        Removes the subtree which has the specified stId as its root.
-        """
+        """Removes the subtree which has the specified stid as its root."""
         subtree = list(dfs_tree(self.graph_nx, stid))
         self.graph_nx.remove_nodes_from(subtree)
 
     def remove_by_name(self, name):
-        """
-        Removes the subtree which has the specified name as its root.
-        """
+        """Removes the subtree which has the specified name as its root."""
         id = self.name_to_id[name]
         self.remove_by_id(id)
+
+    def add_significance_by_stid(self, stid_list):
+        """Highlight only the pathways with the specified stids.
+        
+        **Note**:
+        How to add weights (p-values) for the specified nodes?
+        """
+        for stid in stid_list:
+            try:
+                self.graph_nx.nodes[stid]['significance'] = 'significant'
+                self.graph_nx.nodes[stid]['weight'] = 0.0
+            except KeyError:
+                continue
+
+    def add_significance_by_name(self, name_list):
+        """Highlight only the pathways with the specified names."""
+        stid_list = [self.name_to_id[name] for name in name_list]
+        self.add_significance_by_stid(stid_list)

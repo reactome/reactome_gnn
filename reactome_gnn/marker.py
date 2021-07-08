@@ -2,15 +2,47 @@ from reactome2py import analysis
 
 
 class Marker:
+    """
+    A class that performs enrichment analysis results for a certain
+    set of markers and stores the results.
+
+    Attributes
+    ----------
+    markers : str
+        A coma-separated string of markers for which the enrichment
+        analysis is performed
+    p_value : float
+        Threshold for p-value to determine significant pathways
+    result : dict
+        Results of the enrichment analysis
+    """
+
     def __init__(self, marker_list, p_value):
+        """
+        Parameters
+        ----------
+        markers : str
+            A coma-separated string of markers for which the enrichment
+            analysis is performed
+        p_value : float
+            Threshold for p-value to determine significant pathways
+        """
         self.markers = ','.join(marker_list)
         self.p_value = p_value
         self.result = self.enrichment_analysis()
 
     def enrichment_analysis(self):
-        """
-        Enrichment analysis performed on all the pathways. First all the hit pathways are obtained.
-        Then, it is determined which of them are significant (p_value < threshold).
+        """Enrichment analysis performed on all the pathways.
+        
+        First all the hit pathways are obtained. Then, it is determined
+        which of them are significant (p_value < threshold).
+
+        Returns
+        -------
+        dict
+            Dictionary of significant pathways, where stids are keys
+            and the values stored are p_value and significance of
+            each pathway
         """
         result = analysis.identifiers(ids=self.markers, interactors=False, page_size='1', page='1',
                                       species='Homo Sapiens', sort_by='ENTITIES_FDR', order='ASC',
