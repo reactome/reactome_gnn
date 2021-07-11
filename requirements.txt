@@ -3,6 +3,7 @@ certifi==2021.5.30
 chardet==4.0.0
 cycler==0.10.0
 decorator==4.4.2
+dgl==0.6.1
 idna==2.10
 iniconfig==1.1.1
 json5==0.9.5
@@ -19,10 +20,14 @@ pyparsing==2.4.7
 pytest==6.2.4
 python-dateutil==2.8.1
 pytz==2021.1
--e git+https://github.com/reactome/reactome_gnn.git@de603a27590b2a78db4f5c249cfc99b5672c6e22#egg=reactome_gnn
+-e git+https://github.com/reactome/reactome_gnn.git@13f6031b50364204aacdb53a9cd473d9077c661a#egg=reactome_gnn
 reactome2py==3.0.0
 requests==2.25.1
 scipy==1.6.3
 six==1.16.0
 toml==0.10.2
+torch==1.9.0+cpu
+torchaudio==0.9.0
+torchvision==0.10.0+cpu
+typing-extensions==3.10.0.0
 urllib3==1.26.5
