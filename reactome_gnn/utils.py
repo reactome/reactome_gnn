@@ -1,7 +1,9 @@
 import os
 import pickle
 
-from reactome_gnn import marker, network
+import torch
+
+from reactome_gnn import marker, network, dataset, model
 
 
 def create_network_from_markers(marker_list, p_value, study):
@@ -134,3 +136,39 @@ def create_toy_study_with_names():
     save_to_disk(graph_D, save_dir)
 
     return graph_A, graph_B, graph_C, graph_D
+
+
+def create_embeddings(dim_latent=16, num_layers=1):
+    """Create embeddings for all the graphs stored on the disk.
+
+    First the Pathway dataset is created which takes all the graphs
+    stored in the 'raw' directory, processes them, and stores them in
+    the 'processed' directory. Each graph is fed to the model with
+    specified latent dimension and number of GCN layers, which returns
+    the embedding of that graph. All the embeddings are saved on the
+    disk in the 'embeddings' directory.
+
+    Parameters
+    ----------
+    dim_latent : int, optional
+        Dimension of the graph embeddings, default 16
+    num_layers : int, optional
+        Number of GCN layers in the GCNModel, deafult 1
+    """
+    data = dataset.PathwayDataset('data/example')
+    emb_dir = os.path.abspath('data/example/embeddings')
+    if not os.path.isdir(emb_dir):
+        os.mkdir(emb_dir)
+    net = model.GCNModel(dim_latent=dim_latent, num_layers=num_layers)
+    for idx in range(len(data)):
+        graph = data[idx]
+        embedding = net(graph)
+        emb_path = os.path.join(emb_dir, f'{idx}.pth')
+        torch.save(embedding, emb_path)
+
+
+def get_embedding(idx):
+    """Load and return the embedding of the graph with specified index."""
+    emb_path = os.path.abspath(f'data/example/embeddings/{idx}.pth')
+    embedding = torch.load(emb_path)
+    return embedding

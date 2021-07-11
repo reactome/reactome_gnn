@@ -11,8 +11,24 @@ class PathwayDataset(DGLDataset):
     A class that inherits from DGLDataset and extends its functionality
     by adding additional attributed and processing of the graph
     accordingly.
+
+    Attributes
+    ----------
+    root : str
+        Root directory consisting of other directories where the raw
+        data can be found, and where all the processing results are
+        stored.
     """
+
     def __init__(self, root='data'):
+        """
+        Parameters
+        ----------
+        root : str
+            Root directory consisting of other directories where the raw
+            data can be found, and where all the processing results are
+            stored.
+        """
         self.root = os.path.abspath(root)
         if 'processed' not in os.listdir(self.root):
             subprocess.run(f"mkdir 'tmp'", shell=True, cwd=self.root)
@@ -22,6 +38,7 @@ class PathwayDataset(DGLDataset):
         
 
     def has_cache(self):
+        """Check whether the dataset already exists."""
         return len(os.listdir(self.save_dir)) == len(os.listdir(self.raw_dir))
 
     def __len__(self):
@@ -32,6 +49,7 @@ class PathwayDataset(DGLDataset):
         return graph
 
     def process(self):
+        """Process the graphs and store them in the 'processed' directory."""
         for cnt, graph_file in enumerate(os.listdir(self.raw_dir)):
             graph_path = os.path.join(self.raw_dir, graph_file)
             nx_graph = pickle.load(open(graph_path, 'rb'))
