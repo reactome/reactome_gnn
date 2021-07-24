@@ -45,8 +45,10 @@ class PathwayDataset(DGLDataset):
         return len(os.listdir(self.save_dir))
 
     def __getitem__(self, idx):
-        (graph,), _ = dgl.load_graphs(os.path.join(self.save_dir, str(idx) + '.dgl'))
-        return graph
+        names = sorted(os.listdir(self.save_dir))
+        name = names[idx]
+        (graph,), _ = dgl.load_graphs(os.path.join(self.save_dir, name))
+        return graph, name
 
     def process(self):
         """Process the graphs and store them in the 'processed' directory."""
@@ -59,5 +61,5 @@ class PathwayDataset(DGLDataset):
                 else:
                     nx_graph.nodes[node]['significance'] = 0.0
             dgl_graph = dgl.from_networkx(nx_graph, node_attrs=['weight', 'significance'])
-            save_path = os.path.join(self.save_dir, f'{cnt}.dgl')
+            save_path = os.path.join(self.save_dir, f'{graph_file[:-4]}.dgl')
             dgl.save_graphs(save_path, dgl_graph)

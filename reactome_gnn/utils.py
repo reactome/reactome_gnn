@@ -138,7 +138,7 @@ def create_toy_study_with_names():
     return graph_A, graph_B, graph_C, graph_D
 
 
-def create_embeddings(dim_latent=16, num_layers=1):
+def create_embeddings(dim_latent=1, num_layers=1, load_model=True):
     """Create embeddings for all the graphs stored on the disk.
 
     First the Pathway dataset is created which takes all the graphs
@@ -154,21 +154,28 @@ def create_embeddings(dim_latent=16, num_layers=1):
         Dimension of the graph embeddings, default 16
     num_layers : int, optional
         Number of GCN layers in the GCNModel, deafult 1
+    load_model : bool, optional
+        Whether to load an old model or create a new one
     """
     data = dataset.PathwayDataset('data/example')
     emb_dir = os.path.abspath('data/example/embeddings')
+    model_path = os.path.abspath('data/example/models/model.pth')
     if not os.path.isdir(emb_dir):
         os.mkdir(emb_dir)
     net = model.GCNModel(dim_latent=dim_latent, num_layers=num_layers)
+    if load_model:
+        net.load_state_dict(torch.load(model_path))
+    else:
+        torch.save(net.state_dict(), model_path)
     for idx in range(len(data)):
-        graph = data[idx]
+        graph, name = data[idx]
         embedding = net(graph)
-        emb_path = os.path.join(emb_dir, f'{idx}.pth')
+        emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
         torch.save(embedding, emb_path)
 
 
-def get_embedding(idx):
+def get_embedding(name):
     """Load and return the embedding of the graph with specified index."""
-    emb_path = os.path.abspath(f'data/example/embeddings/{idx}.pth')
-    embedding = torch.load(emb_path)
+    emb_path = os.path.abspath(f'data/example/embeddings')
+    embedding = torch.load(os.path.join(emb_path, f'{name}.pth'))
     return embedding
