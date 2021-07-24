@@ -23,4 +23,3 @@ def test_getitem():
 def test_node_attributes():
     graph, name = ds[0]
     assert ('significance', 'weight') == tuple(graph.ndata.keys())
-
