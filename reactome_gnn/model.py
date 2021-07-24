@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import dgl
 from dgl.nn import GraphConv
 
 
@@ -33,6 +34,7 @@ class GCNModel(nn.Module):
         weights = graph.ndata['weight'].unsqueeze(-1)
         features = torch.cat((weights, significance), dim=1)
         features = self.linear(features)
+        graph = dgl.add_self_loop(graph)
         embedding = self.conv_0(graph, features)
         for conv in self.layers:
             embedding = self.relu(embedding)
