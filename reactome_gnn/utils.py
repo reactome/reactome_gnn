@@ -2,6 +2,7 @@ import os
 import pickle
 
 import torch
+from sklearn.cross_decomposition import CCA
 
 from reactome_gnn import marker, network, dataset, model
 
@@ -197,3 +198,55 @@ def embeddings_sanity_check():
     assert (studies[0] == studies[3]).all()
     print("Passed all the tests!")
     return True
+
+def fit_cca_on_toy_data():
+    """Perform canonical correlation analysis on the toy datasets.
+
+    Fit the CCA model onto the embeddings and labels of the studies
+    A, B, and C. Study D is excluded since it is the same as A.
+
+    Returns
+    -------
+    abc.ABCMeta
+        The trained CCA model which can be used on other embeddings
+    """
+    study_A = ["Signaling by WNT", "WNT ligand biogenesis and trafficking",
+               "Degradation of beta-catenin by the destruction complex",
+               "TCF dependent signaling in response to WNT",
+               "Beta-catenin independent WNT signaling"]
+    study_B = ["Autophagy", "Macroautophagy", "Chaperone Mediated Autophagy",
+               "Late endosomal microautophagy"]
+    study_C = ["Signal Transduction", "Signaling by NOTCH", "Signaling by NOTCH1",
+               "Signaling by NOTCH2", "Signaling by NOTCH3", "Signaling by NOTCH4",
+               "Activated NOTCH1 Transmits Signal to the Nucleus",
+               "NOTCH1 Intracellular Domain Regulates Transcription",
+               "Signaling by WNT", "WNT ligand biogenesis and trafficking",
+               "Degradation of beta-catenin by the destruction complex",
+               "TCF dependent signaling in response to WNT",
+               "Beta-catenin independent WNT signaling"]
+    study_D = ["Signaling by WNT", "WNT ligand biogenesis and trafficking",
+               "Degradation of beta-catenin by the destruction complex",
+               "TCF dependent signaling in response to WNT",
+               "Beta-catenin independent WNT signaling"]
+
+    emb_A = get_embedding('study_A').detach()
+    emb_B = get_embedding('study_B').detach()
+    emb_C = get_embedding('study_C').detach()
+    emb_D = get_embedding('study_D').detach()
+
+    stids = pickle.load(open('data/example/info/sorted_stid_list.pkl', 'rb'))
+    name_to_id = pickle.load(open('data/example/info/name_to_id.pkl', 'rb'))
+
+    indices_A = [stids.index(id) for name, id in name_to_id.items() if name in study_A]
+    indices_B = [stids.index(id) for name, id in name_to_id.items() if name in study_B]
+    indices_C = [stids.index(id) for name, id in name_to_id.items() if name in study_C]
+    indices_D = [stids.index(id) for name, id in name_to_id.items() if name in study_D]
+
+    y_A = torch.tensor([1.0 if i in indices_A else 0.0 for i in range(len(stids))]).unsqueeze(-1)
+    y_B = torch.tensor([1.0 if i in indices_B else 0.0 for i in range(len(stids))]).unsqueeze(-1)
+    y_C = torch.tensor([1.0 if i in indices_C else 0.0 for i in range(len(stids))]).unsqueeze(-1)
+    y_D = torch.tensor([1.0 if i in indices_D else 0.0 for i in range(len(stids))]).unsqueeze(-1)
+
+    cca = CCA(1)
+    cca.fit(emb_A, y_A).fit(emb_B, y_B).fit(emb_C, y_C)
+    return cca
