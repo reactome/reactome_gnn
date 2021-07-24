@@ -183,7 +183,9 @@ def get_embedding(name):
 
 
 def embeddings_sanity_check():
-    """Check whether the embeddings of the toy examples are consistent between themselves."""
+    """Check whether the embeddings of the toy examples are consistent
+     between themselves. Works when embeddings have dimension = 1.
+     """
     studies = []
     for c in 'ABCD':
         studies.append(get_embedding(f'study_{c}'))
