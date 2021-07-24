@@ -169,7 +169,7 @@ def create_embeddings(dim_latent=1, num_layers=1, load_model=True):
         torch.save(net.state_dict(), model_path)
     for idx in range(len(data)):
         graph, name = data[idx]
-        embedding = net(graph)
+        embedding = net(graph).detach()
         emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
         torch.save(embedding, emb_path)
 
@@ -179,3 +179,21 @@ def get_embedding(name):
     emb_path = os.path.abspath(f'data/example/embeddings')
     embedding = torch.load(os.path.join(emb_path, f'{name}.pth'))
     return embedding
+
+
+def embeddings_sanity_check():
+    """Check whether the embeddings of the toy examples are consistent between themselves."""
+    studies = []
+    for c in 'ABCD':
+        studies.append(get_embedding(f'study_{c}'))
+    stids = pickle.load(open('data/example/info/sorted_stid_list.pkl', 'rb'))
+    name_to_id = pickle.load(open('data/example/info/name_to_id.pkl', 'rb'))
+    test_1 = [studies[i][stids.index(name_to_id["Late endosomal microautophagy"])].item() for i in range(4)]
+    assert test_1[0] == test_1[2] == test_1[3] != test_1[1]
+    test_2 = [studies[i][stids.index(name_to_id["Signaling by NOTCH"])].item() for i in range(4)]
+    assert test_2[0] == test_2[1] == test_2[3] != test_1[2]
+    test_3 = [studies[i][stids.index(name_to_id["Macroautophagy"])].item() for i in range(4)]
+    assert test_3[0] == test_3[2] == test_3[3] != test_3[1]
+    assert (studies[0] == studies[3]).all()
+    print("Passed all the tests!")
+    return True
