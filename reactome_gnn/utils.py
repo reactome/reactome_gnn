@@ -139,7 +139,7 @@ def create_toy_study_with_names():
     return graph_A, graph_B, graph_C, graph_D
 
 
-def create_embeddings(dim_latent=1, num_layers=1, load_model=True):
+def create_embeddings(dim_latent=8, num_layers=2, load_model=True):
     """Create embeddings for all the graphs stored on the disk.
 
     First the Pathway dataset is created which takes all the graphs
