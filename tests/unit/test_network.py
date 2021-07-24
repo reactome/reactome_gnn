@@ -1,6 +1,4 @@
-from collections import defaultdict
 import networkx as nx
-from networkx.generators.atlas import graph_atlas
 from reactome_gnn import marker, network
 
 ea_result = marker.Marker(marker_list=['EGF', 'EGFR'], p_value=0.05)
