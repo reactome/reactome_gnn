@@ -54,7 +54,7 @@ def save_to_disk(graph, save_dir):
     pickle.dump(graph.graph_nx, open(save_path, 'wb'))
 
 
-def create_toy_study_with_markers(p_value=0.05):
+def create_toy_study_with_markers(p_value=0.05, save_to_disk=False):
     """Create networks for the predefined set of markers.
 
     Given the four sets of markers (A, B, C, D), perform enrichment
@@ -67,6 +67,8 @@ def create_toy_study_with_markers(p_value=0.05):
     ----------
     p_value : float
         Threshold for p-value to determine significant pathways
+    save_to_disk : bool, optional
+        Whether to save the created networks to the disk, default: False
 
     Returns
     -------
@@ -83,16 +85,17 @@ def create_toy_study_with_markers(p_value=0.05):
     graph_C = create_network_from_markers(study_C, p_value, 'study_C')
     graph_D = create_network_from_markers(study_D, p_value, 'study_D')
 
-    save_dir = 'data/example'
-    save_to_disk(graph_A, save_dir)
-    save_to_disk(graph_B, save_dir)
-    save_to_disk(graph_C, save_dir)
-    save_to_disk(graph_D, save_dir)
+    if save_to_disk:
+        save_dir = 'data/example'
+        save_to_disk(graph_A, save_dir)
+        save_to_disk(graph_B, save_dir)
+        save_to_disk(graph_C, save_dir)
+        save_to_disk(graph_D, save_dir)
 
     return graph_A, graph_B, graph_C, graph_D
 
 
-def create_toy_study_with_names():
+def create_toy_study_with_names(save_to_disk=False):
     """Create networks for the predefined set of pathway names.
 
     Given the four sets of pathway names (A, B, C, D), create four
@@ -100,6 +103,11 @@ def create_toy_study_with_names():
     cases follow the patterns A = D, A & D subsets of C, B and C have
     no intersection. Saves the created networks to the disk and return
     them.
+
+    Parameters
+    ----------
+    save_to_disk : bool, optional
+        Whether to save the created networks to the disk, default: False
 
     Returns
     -------
@@ -130,16 +138,17 @@ def create_toy_study_with_names():
     graph_C = create_network_from_names(study_C, 'study_C')
     graph_D = create_network_from_names(study_D, 'study_D')
 
-    save_dir = 'data/example'
-    save_to_disk(graph_A, save_dir)
-    save_to_disk(graph_B, save_dir)
-    save_to_disk(graph_C, save_dir)
-    save_to_disk(graph_D, save_dir)
+    if save_to_disk:
+        save_dir = 'data/example'
+        save_to_disk(graph_A, save_dir)
+        save_to_disk(graph_B, save_dir)
+        save_to_disk(graph_C, save_dir)
+        save_to_disk(graph_D, save_dir)
 
     return graph_A, graph_B, graph_C, graph_D
 
 
-def create_embeddings(dim_latent=8, num_layers=2, load_model=True):
+def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=False):
     """Create embeddings for all the graphs stored on the disk.
 
     First the Pathway dataset is created which takes all the graphs
@@ -157,6 +166,15 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True):
         Number of GCN layers in the GCNModel, deafult 1
     load_model : bool, optional
         Whether to load an old model or create a new one
+    save_to_disk : bool, optional
+        Whether to save the created networks to the disk, default: False
+
+    Returns
+    -------
+    list
+        A list of embedding-tuples, the first element in the tuple is
+        the name of the graph, the second element is the corresponding
+        embedding.
     """
     data = dataset.PathwayDataset('data/example')
     emb_dir = os.path.abspath('data/example/embeddings')
@@ -168,11 +186,17 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True):
         net.load_state_dict(torch.load(model_path))
     else:
         torch.save(net.state_dict(), model_path)
+
+    embedding_list = []
     for idx in range(len(data)):
         graph, name = data[idx]
         embedding = net(graph).detach()
-        emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
-        torch.save(embedding, emb_path)
+        embedding_list.append((name, embedding))
+        if save_to_disk:
+            emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
+            torch.save(embedding, emb_path)
+    
+    return embedding_list
 
 
 def get_embedding(name):
