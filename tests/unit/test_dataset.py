@@ -3,7 +3,7 @@ import dgl
 from reactome_gnn import dataset
 
 
-ds = dataset.PathwayDataset(root='data/example')
+ds = dataset.PathwayDataset(root='demo/data/example')
 
 
 def test_root_dir():

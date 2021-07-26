@@ -6,7 +6,7 @@ from reactome_gnn import model
 
 
 net = model.GCNModel(dim_latent=8, num_layers=3)
-graph = dgl.load_graphs('data/example/processed/study_A.dgl')[0][0]
+graph = dgl.load_graphs('demo/data/example/processed/study_A.dgl')[0][0]
 embedding = net(graph)
 
 
