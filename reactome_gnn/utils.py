@@ -1,6 +1,7 @@
 import os
 import pickle
 
+import dgl
 import torch
 from sklearn.cross_decomposition import CCA
 
@@ -54,7 +55,8 @@ def save_to_disk(graph, save_dir):
     pickle.dump(graph.graph_nx, open(save_path, 'wb'))
 
 
-def create_toy_study_with_markers(p_value=0.05, save_to_disk=False):
+def create_toy_study_with_markers(p_value=0.05, save_to_disk=False, 
+                                  data_dir='demo/data/example'):
     """Create networks for the predefined set of markers.
 
     Given the four sets of markers (A, B, C, D), perform enrichment
@@ -69,6 +71,8 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False):
         Threshold for p-value to determine significant pathways
     save_to_disk : bool, optional
         Whether to save the created networks to the disk, default: False
+    data_dir : str, optional
+        Relative path to where the data is stored
 
     Returns
     -------
@@ -86,7 +90,7 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False):
     graph_D = create_network_from_markers(study_D, p_value, 'study_D')
 
     if save_to_disk:
-        save_dir = 'data/example'
+        save_dir = os.path.join(data_dir, 'raw')
         save_to_disk(graph_A, save_dir)
         save_to_disk(graph_B, save_dir)
         save_to_disk(graph_C, save_dir)
@@ -95,7 +99,7 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False):
     return graph_A, graph_B, graph_C, graph_D
 
 
-def create_toy_study_with_names(save_to_disk=False):
+def create_toy_study_with_names(save_to_disk=False, data_dir='demo/data/example'):
     """Create networks for the predefined set of pathway names.
 
     Given the four sets of pathway names (A, B, C, D), create four
@@ -108,6 +112,8 @@ def create_toy_study_with_names(save_to_disk=False):
     ----------
     save_to_disk : bool, optional
         Whether to save the created networks to the disk, default: False
+    data_dir : str, optional
+        Relative path to where the data is stored
 
     Returns
     -------
@@ -139,7 +145,7 @@ def create_toy_study_with_names(save_to_disk=False):
     graph_D = create_network_from_names(study_D, 'study_D')
 
     if save_to_disk:
-        save_dir = 'data/example'
+        save_dir = os.path.join(data_dir, 'raw')
         save_to_disk(graph_A, save_dir)
         save_to_disk(graph_B, save_dir)
         save_to_disk(graph_C, save_dir)
@@ -148,7 +154,8 @@ def create_toy_study_with_names(save_to_disk=False):
     return graph_A, graph_B, graph_C, graph_D
 
 
-def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=False):
+def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=False,
+                      data_dir='demo/data/example'):
     """Create embeddings for all the graphs stored on the disk.
 
     First the Pathway dataset is created which takes all the graphs
@@ -168,6 +175,8 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=
         Whether to load an old model or create a new one
     save_to_disk : bool, optional
         Whether to save the created networks to the disk, default: False
+    data_dir : str, optional
+        Relative path to where the data is stored
 
     Returns
     -------
@@ -176,9 +185,9 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=
         the name of the graph, the second element is the corresponding
         embedding.
     """
-    data = dataset.PathwayDataset('data/example')
-    emb_dir = os.path.abspath('data/example/embeddings')
-    model_path = os.path.abspath('data/example/models/model.pth')
+    data = dataset.PathwayDataset(data_dir)
+    emb_dir = os.path.abspath(os.path.join(data_dir, 'embeddings'))
+    model_path = os.path.abspath(os.path.join(data_dir, 'models/model.pth'))
     if not os.path.isdir(emb_dir):
         os.mkdir(emb_dir)
     net = model.GCNModel(dim_latent=dim_latent, num_layers=num_layers)
@@ -187,34 +196,39 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=
     else:
         torch.save(net.state_dict(), model_path)
 
-    embedding_list = []
+    embedding_dict = {}
     for idx in range(len(data)):
         graph, name = data[idx]
         embedding = net(graph).detach()
-        embedding_list.append((name, embedding))
+        embedding_dict[name] = embedding
         if save_to_disk:
             emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
             torch.save(embedding, emb_path)
     
-    return embedding_list
+    return embedding_dict
 
 
-def get_embedding(name):
+def get_embedding(name, data_dir='demo/data/example'):
     """Load and return the embedding of the graph with specified index."""
-    emb_path = os.path.abspath(f'data/example/embeddings')
+    emb_path = os.path.abspath(os.path.join(data_dir, 'embeddings'))
     embedding = torch.load(os.path.join(emb_path, f'{name}.pth'))
     return embedding
 
 
-def embeddings_sanity_check():
+def embeddings_sanity_check(data_dir='demo/data/example'):
     """Check whether the embeddings of the toy examples are consistent
-     between themselves. Works when embeddings have dimension = 1.
-     """
+    between themselves. Works when embeddings have dimension = 1.
+
+    Parameters
+    ----------
+    data_dir : str, optional
+        Relative path to where the data is stored
+    """
     studies = []
     for c in 'ABCD':
         studies.append(get_embedding(f'study_{c}'))
-    stids = pickle.load(open('data/example/info/sorted_stid_list.pkl', 'rb'))
-    name_to_id = pickle.load(open('data/example/info/name_to_id.pkl', 'rb'))
+    stids = pickle.load(open(os.path.join(data_dir, 'info/sorted_stid_list.pkl', 'rb')))
+    name_to_id = pickle.load(open(os.path.join(data_dir, 'info/name_to_id.pkl', 'rb')))
     test_1 = [studies[i][stids.index(name_to_id["Late endosomal microautophagy"])].item() for i in range(4)]
     assert test_1[0] == test_1[2] == test_1[3] != test_1[1]
     test_2 = [studies[i][stids.index(name_to_id["Signaling by NOTCH"])].item() for i in range(4)]
@@ -225,11 +239,28 @@ def embeddings_sanity_check():
     print("Passed all the tests!")
     return True
 
-def fit_cca_on_toy_data():
+
+def nx_to_dgl(graph_nx):
+    """Transform NetworkX graph into DGL graph."""
+    for node in graph_nx.nodes:
+        if graph_nx.nodes[node]['significance'] == 'significant':
+            graph_nx.nodes[node]['significance'] = 1.0
+        else:
+            graph_nx.nodes[node]['significance'] = 0.0
+    graph_dgl = dgl.from_networkx(graph_nx, node_attrs=['weight', 'significance'])
+    return graph_dgl
+
+
+def fit_cca_on_toy_data(data_dir='demo/data/example'):
     """Perform canonical correlation analysis on the toy datasets.
 
     Fit the CCA model onto the embeddings and labels of the studies
     A, B, and C. Study D is excluded since it is the same as A.
+
+    Parameters
+    ----------
+    data_dir : str, optional
+        Relative path to where the data is stored
 
     Returns
     -------
@@ -255,13 +286,13 @@ def fit_cca_on_toy_data():
                "TCF dependent signaling in response to WNT",
                "Beta-catenin independent WNT signaling"]
 
-    emb_A = get_embedding('study_A').detach()
-    emb_B = get_embedding('study_B').detach()
-    emb_C = get_embedding('study_C').detach()
-    emb_D = get_embedding('study_D').detach()
+    emb_A = get_embedding('study_A', data_dir).detach()
+    emb_B = get_embedding('study_B', data_dir).detach()
+    emb_C = get_embedding('study_C', data_dir).detach()
+    emb_D = get_embedding('study_D', data_dir).detach()
 
-    stids = pickle.load(open('data/example/info/sorted_stid_list.pkl', 'rb'))
-    name_to_id = pickle.load(open('data/example/info/name_to_id.pkl', 'rb'))
+    stids = pickle.load(open(os.path.join(data_dir, 'info/sorted_stid_list.pkl'), 'rb'))
+    name_to_id = pickle.load(open(os.path.join(data_dir, 'info/name_to_id.pkl'), 'rb'))
 
     indices_A = [stids.index(id) for name, id in name_to_id.items() if name in study_A]
     indices_B = [stids.index(id) for name, id in name_to_id.items() if name in study_B]

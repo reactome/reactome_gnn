@@ -39,4 +39,4 @@ class GCNModel(nn.Module):
         for conv in self.layers:
             embedding = self.relu(embedding)
             embedding = conv(graph, embedding)
-        return embedding
+        return embedding.detach()
