@@ -159,7 +159,7 @@ class Network:
             if stid in ea_result.keys():
                 weights[stid] = ea_result[stid].copy()
             else:
-                weights[stid] = {'p_value': math.inf, 'significance': 'not-found'}
+                weights[stid] = {'p_value': 1.0, 'significance': 'not-found'}
         return weights
 
     def set_node_attributes(self):
@@ -237,7 +237,7 @@ class Network:
         """Highlight only the pathways with the specified stids.
         
         **Note**:
-        How to add weights (p-values) for the specified nodes?
+        How to add weights (p-values) for the specified nodes?  
         """
         for stid in stid_list:
             try:
