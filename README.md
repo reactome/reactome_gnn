@@ -3,7 +3,7 @@
 
 [![Build Status](https://app.travis-ci.com/reactome/reactome_gnn.svg?branch=main)](travis-ci.com/reactome/reactome_gnn)
 
-Reactome_GNN is a Python package for creating higly-dimensional representations of human pathway networks, which can then be used in downstream tasks.
+Reactome_GNN is a Python package for creating highly-dimensional representations of human pathway networks, which can then be used in downstream tasks.
 
 The current version uses a multi-layer Graph Convolutional Network (GCN) as a model for obtaining these representations.
 
