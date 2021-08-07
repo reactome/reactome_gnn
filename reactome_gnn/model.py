@@ -20,8 +20,7 @@ class GCNModel(nn.Module):
             Number of GCN layers in the GCNModel, deafult 1
         """
         super().__init__()
-        self.embedder = nn.Embedding(2, 2)
-        self.linear = nn.Linear(3, dim_latent)
+        self.linear = nn.Linear(1, dim_latent)
         self.conv_0 = GraphConv(dim_latent, dim_latent, allow_zero_in_degree=True)
         self.relu = nn.LeakyReLU()
         self.layers = nn.ModuleList([GraphConv(dim_latent, dim_latent, allow_zero_in_degree=True)
@@ -30,11 +29,8 @@ class GCNModel(nn.Module):
 
     def forward(self, graph):
         """Return the embedding of a graph."""
-        significance = graph.ndata['significance'].int()
-        significance = self.embedder(significance)
         weights = graph.ndata['weight'].unsqueeze(-1)
-        features = torch.cat((weights, significance), dim=1)
-        features = self.linear(features)
+        features = self.linear(weights)
         graph = dgl.add_self_loop(graph)
         embedding = self.conv_0(graph, features)
         for conv in self.layers:

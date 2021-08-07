@@ -55,7 +55,7 @@ def save_to_disk(graph, save_dir):
     pickle.dump(graph.graph_nx, open(save_path, 'wb'))
 
 
-def create_toy_study_with_markers(p_value=0.05, save_to_disk=False, 
+def create_toy_study_with_markers(p_value=0.05, save=False, 
                                   data_dir='demo/data/example'):
     """Create networks for the predefined set of markers.
 
@@ -69,7 +69,7 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False,
     ----------
     p_value : float
         Threshold for p-value to determine significant pathways
-    save_to_disk : bool, optional
+    save : bool, optional
         Whether to save the created networks to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
@@ -89,7 +89,7 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False,
     graph_C = create_network_from_markers(study_C, p_value, 'study_C')
     graph_D = create_network_from_markers(study_D, p_value, 'study_D')
 
-    if save_to_disk:
+    if save:
         save_dir = os.path.join(data_dir, 'raw')
         save_to_disk(graph_A, save_dir)
         save_to_disk(graph_B, save_dir)
@@ -99,7 +99,7 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False,
     return graph_A, graph_B, graph_C, graph_D
 
 
-def create_toy_study_with_names(save_to_disk=False, data_dir='demo/data/example'):
+def create_toy_study_with_names(save=False, data_dir='demo/data/example'):
     """Create networks for the predefined set of pathway names.
 
     Given the four sets of pathway names (A, B, C, D), create four
@@ -110,7 +110,7 @@ def create_toy_study_with_names(save_to_disk=False, data_dir='demo/data/example'
 
     Parameters
     ----------
-    save_to_disk : bool, optional
+    save : bool, optional
         Whether to save the created networks to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
@@ -138,23 +138,29 @@ def create_toy_study_with_names(save_to_disk=False, data_dir='demo/data/example'
                "Degradation of beta-catenin by the destruction complex",
                "TCF dependent signaling in response to WNT",
                "Beta-catenin independent WNT signaling"]
+    study_E = ["DNA Repair", "DNA Damage Bypass",
+               "Recognition of DNA damage by PCNA-containing replication complex",
+               "Translesion synthesis by Y family DNA polymerases bypasses lesions on DNA template",
+               "Translesion synthesis by REV1", "Translesion synthesis by POLK"]
     
     graph_A = create_network_from_names(study_A, 'study_A')
     graph_B = create_network_from_names(study_B, 'study_B')
     graph_C = create_network_from_names(study_C, 'study_C')
     graph_D = create_network_from_names(study_D, 'study_D')
+    graph_E = create_network_from_names(study_E, 'study_E')
 
-    if save_to_disk:
+    if save:
         save_dir = os.path.join(data_dir, 'raw')
         save_to_disk(graph_A, save_dir)
         save_to_disk(graph_B, save_dir)
         save_to_disk(graph_C, save_dir)
         save_to_disk(graph_D, save_dir)
+        save_to_disk(graph_E, save_dir)
 
-    return graph_A, graph_B, graph_C, graph_D
+    return graph_A, graph_B, graph_C, graph_D, graph_E
 
 
-def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=False,
+def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save=False,
                       data_dir='demo/data/example'):
     """Create embeddings for all the graphs stored on the disk.
 
@@ -173,7 +179,7 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=
         Number of GCN layers in the GCNModel, deafult 1
     load_model : bool, optional
         Whether to load an old model or create a new one
-    save_to_disk : bool, optional
+    save : bool, optional
         Whether to save the created networks to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
@@ -201,7 +207,7 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=
         graph, name = data[idx]
         embedding = net(graph).detach()
         embedding_dict[name] = embedding
-        if save_to_disk:
+        if save:
             emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
             torch.save(embedding, emb_path)
     
