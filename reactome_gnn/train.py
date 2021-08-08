@@ -11,7 +11,7 @@ from dgl.dataloading import GraphDataLoader
 from reactome_gnn import model, dataset, hyperparameters
 
 
-def draw_loss_plot(train_loss, valid_loss, name, save_dir):
+def draw_loss_plot(train_loss, valid_loss, save_path):
     """Draw and save plot of train and validation loss over epochs.
 
     Parameters
@@ -34,8 +34,7 @@ def draw_loss_plot(train_loss, valid_loss, name, save_dir):
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
-    save_path = os.path.join(save_dir, name)
-    plt.savefig(f'loss_{save_path}.png')
+    plt.savefig(f'{save_path}.png')
     plt.show()
 
 
@@ -48,6 +47,8 @@ def train(hyperparams=None, data_path='demo/data/example', plot=True):
         Dictionary with hyperparameters
     data_path : str, optional
         Relative path to where the data is stored
+    plot : bool, optional
+        Whether to plot loss over epochs
 
     Returns
     -------
@@ -105,7 +106,9 @@ def train(hyperparams=None, data_path='demo/data/example', plot=True):
         # Output loss
         running_loss = np.array(loss_per_graph).mean()
         loss_per_epoch_train.append(np.array(loss_per_graph).mean())
-        print(f'Epoch: {epoch}\t\tTraining loss: {running_loss}')
+
+        if (epoch + 1) % 10 == 0:
+            print(f'Epoch: {epoch+1}\t\tTraining loss: {running_loss}')
         
         # Validation iteration
         with torch.no_grad():
@@ -124,11 +127,15 @@ def train(hyperparams=None, data_path='demo/data/example', plot=True):
         if len(loss_per_epoch_valid) > 0 and running_loss < min(loss_per_epoch_valid):
             best_net.load_state_dict(copy.deepcopy(net.state_dict()))
         loss_per_epoch_valid.append(running_loss)
-        print(f'Epoch: {epoch}\t\tValidation loss: {running_loss}')
+
+        if (epoch+1) % 10 == 0:
+            print(f'Epoch: {epoch+1}\t\tValidation loss: {running_loss}')
 
     # Plot loss
     if plot:
-        draw_loss_plot(loss_per_epoch_train, loss_per_epoch_valid, 'plot', data_path)
+        plot_path = os.path.join(data_path, 'figures')
+        plot_path = os.path.join(plot_path, f'plot_dim{dim_latent}_lay{num_layers}.png')
+        draw_loss_plot(loss_per_epoch_train, loss_per_epoch_valid, plot_path)
 
     # Save the best model
     torch.save(best_net.state_dict(), model_path)

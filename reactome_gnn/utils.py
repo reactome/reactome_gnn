@@ -5,7 +5,7 @@ import dgl
 import torch
 from sklearn.cross_decomposition import CCA
 
-from reactome_gnn import marker, network, dataset, model, train
+from reactome_gnn import marker, network, dataset, model, train, hyperparameters
 
 
 def create_network_from_markers(marker_list, p_value, study):
@@ -160,8 +160,8 @@ def create_toy_study_with_names(save=False, data_dir='demo/data/example'):
     return graph_A, graph_B, graph_C, graph_D, graph_E
 
 
-def create_embeddings(dim_latent=8, num_layers=1, load_model=True, save=False,
-                      data_dir='demo/data/example', hyperparams=None, plot=True):
+def create_embeddings(load_model=True, save=False, data_dir='demo/data/example',
+                      hyperparams=None, plot=True):
     """Create embeddings for all the graphs stored on the disk.
 
     First the Pathway dataset is created which takes all the graphs
@@ -173,14 +173,10 @@ def create_embeddings(dim_latent=8, num_layers=1, load_model=True, save=False,
 
     Parameters
     ----------
-    dim_latent : int, optional
-        Dimension of the graph embeddings, default 16
-    num_layers : int, optional
-        Number of GCN layers in the GCNModel, deafult 1
     load_model : bool, optional
         Whether to load an old model or create a new one
     save : bool, optional
-        Whether to save the created networks to the disk, default: False
+        Whether to save the created embeddings to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
     hyperparams : dict, optional
@@ -201,7 +197,15 @@ def create_embeddings(dim_latent=8, num_layers=1, load_model=True, save=False,
     if not os.path.isdir(emb_dir):
         os.mkdir(emb_dir)
 
+
+    if hyperparams is None:
+        hyperparams = hyperparameters.get_hyperparameters()
+
+    dim_latent = hyperparams['dim_latent']
+    num_layers = hyperparams['num_layers']
+    
     net = model.GCNModel(dim_latent=dim_latent, num_layers=num_layers)
+
     if load_model:
         model_path = os.path.abspath(os.path.join(data_dir, 'models/model.pth'))
         net.load_state_dict(torch.load(model_path))
