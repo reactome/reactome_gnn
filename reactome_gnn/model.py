@@ -20,6 +20,7 @@ class GCNModel(nn.Module):
             Number of GCN layers in the GCNModel, deafult 1
         """
         super().__init__()
+        self.train = train
         self.linear = nn.Linear(1, dim_latent)
         self.conv_0 = GraphConv(dim_latent, dim_latent, allow_zero_in_degree=True)
         self.relu = nn.LeakyReLU()
@@ -33,11 +34,12 @@ class GCNModel(nn.Module):
         features = self.linear(weights)
         graph = dgl.add_self_loop(graph)
         embedding = self.conv_0(graph, features)
+        
         for conv in self.layers:
             embedding = self.relu(embedding)
             embedding = conv(graph, embedding)
-        if self.train:
-            logits = self.predict(embedding)
-            return logits
-        else:
+        if not self.train:
             return embedding.detach()
+        
+        logits = self.predict(embedding)
+        return logits
