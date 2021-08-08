@@ -5,7 +5,7 @@ import dgl
 import torch
 from sklearn.cross_decomposition import CCA
 
-from reactome_gnn import marker, network, dataset, model
+from reactome_gnn import marker, network, dataset, model, train
 
 
 def create_network_from_markers(marker_list, p_value, study):
@@ -55,7 +55,7 @@ def save_to_disk(graph, save_dir):
     pickle.dump(graph.graph_nx, open(save_path, 'wb'))
 
 
-def create_toy_study_with_markers(p_value=0.05, save=False, 
+def create_toy_study_with_markers(p_value=0.05, save=False,
                                   data_dir='demo/data/example'):
     """Create networks for the predefined set of markers.
 
@@ -83,7 +83,7 @@ def create_toy_study_with_markers(p_value=0.05, save=False,
     study_B = ['EGF', 'EGFR']
     study_C = ['RAS', 'MAP', 'IL10', 'STAT']
     study_D = ['RAS', 'MAP', 'STAT']
-    
+
     graph_A = create_network_from_markers(study_A, p_value, 'study_A')
     graph_B = create_network_from_markers(study_B, p_value, 'study_B')
     graph_C = create_network_from_markers(study_C, p_value, 'study_C')
@@ -142,7 +142,7 @@ def create_toy_study_with_names(save=False, data_dir='demo/data/example'):
                "Recognition of DNA damage by PCNA-containing replication complex",
                "Translesion synthesis by Y family DNA polymerases bypasses lesions on DNA template",
                "Translesion synthesis by REV1", "Translesion synthesis by POLK"]
-    
+
     graph_A = create_network_from_names(study_A, 'study_A')
     graph_B = create_network_from_names(study_B, 'study_B')
     graph_C = create_network_from_names(study_C, 'study_C')
@@ -160,8 +160,8 @@ def create_toy_study_with_names(save=False, data_dir='demo/data/example'):
     return graph_A, graph_B, graph_C, graph_D, graph_E
 
 
-def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save=False,
-                      data_dir='demo/data/example'):
+def create_embeddings(dim_latent=8, num_layers=1, load_model=True, save=False,
+                      data_dir='demo/data/example', hyperparams=None, plot=True):
     """Create embeddings for all the graphs stored on the disk.
 
     First the Pathway dataset is created which takes all the graphs
@@ -183,6 +183,11 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save=False,
         Whether to save the created networks to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
+    hyperparams : dict, optional
+        In case no hyperparameter dictionary is passed, default
+        hyperparameters are used
+    plot : bool, optional
+        In case of training the model, whether loss should be plotted
 
     Returns
     -------
@@ -193,24 +198,26 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save=False,
     """
     data = dataset.PathwayDataset(data_dir)
     emb_dir = os.path.abspath(os.path.join(data_dir, 'embeddings'))
-    model_path = os.path.abspath(os.path.join(data_dir, 'models/model.pth'))
     if not os.path.isdir(emb_dir):
         os.mkdir(emb_dir)
+
     net = model.GCNModel(dim_latent=dim_latent, num_layers=num_layers)
     if load_model:
+        model_path = os.path.abspath(os.path.join(data_dir, 'models/model.pth'))
         net.load_state_dict(torch.load(model_path))
     else:
-        torch.save(net.state_dict(), model_path)
+        model_path = train.train(hyperparams=hyperparams, data_path=data_dir, plot=plot)
+        net.load_state_dict(torch.load(model_path))
 
     embedding_dict = {}
     for idx in range(len(data)):
         graph, name = data[idx]
-        embedding = net(graph).detach()
+        embedding = net(graph)
         embedding_dict[name] = embedding
         if save:
             emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
             torch.save(embedding, emb_path)
-    
+
     return embedding_dict
 
 
@@ -292,10 +299,10 @@ def fit_cca_on_toy_data(data_dir='demo/data/example'):
                "TCF dependent signaling in response to WNT",
                "Beta-catenin independent WNT signaling"]
 
-    emb_A = get_embedding('study_A', data_dir).detach()
-    emb_B = get_embedding('study_B', data_dir).detach()
-    emb_C = get_embedding('study_C', data_dir).detach()
-    emb_D = get_embedding('study_D', data_dir).detach()
+    emb_A = get_embedding('study_A', data_dir)
+    emb_B = get_embedding('study_B', data_dir)
+    emb_C = get_embedding('study_C', data_dir)
+    emb_D = get_embedding('study_D', data_dir)
 
     stids = pickle.load(open(os.path.join(data_dir, 'info/sorted_stid_list.pkl'), 'rb'))
     name_to_id = pickle.load(open(os.path.join(data_dir, 'info/name_to_id.pkl'), 'rb'))

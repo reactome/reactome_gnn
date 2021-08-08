@@ -137,10 +137,6 @@ class Network:
         that were not returned, have their significance set to
         'not-found'.
 
-        **Note**:
-        How do I specifiy the p-value for the not-found pathways?
-        Maybe 1.0? Here I put math.inf just as a placeholder.
-
         Parameters
         ----------
         ea_results : dict

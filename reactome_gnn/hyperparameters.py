@@ -2,6 +2,7 @@ import torch
 
 
 def get_hyperparameters():
+    """Returns a dictionary with the default hyperparameters."""
     return {
         'num_epochs': 100,
         'dim_latent': 8,

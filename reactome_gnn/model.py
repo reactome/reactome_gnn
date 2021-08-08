@@ -10,7 +10,7 @@ class GCNModel(nn.Module):
     and its features, first 
     """
 
-    def __init__(self, dim_latent, num_layers=1, train=False):
+    def __init__(self, dim_latent, num_layers=1, do_train=False):
         """
         Parameters
         ----------
@@ -20,7 +20,7 @@ class GCNModel(nn.Module):
             Number of GCN layers in the GCNModel, deafult 1
         """
         super().__init__()
-        self.train = train
+        self.do_train = do_train
         self.linear = nn.Linear(1, dim_latent)
         self.conv_0 = GraphConv(dim_latent, dim_latent, allow_zero_in_degree=True)
         self.relu = nn.LeakyReLU()
@@ -29,16 +29,16 @@ class GCNModel(nn.Module):
         self.predict = nn.Linear(dim_latent, 1)
 
     def forward(self, graph):
-        """Return the embedding of a graph."""
+        """Process a graph with the network. Return either embedding or logits."""
         weights = graph.ndata['weight'].unsqueeze(-1)
         features = self.linear(weights)
         graph = dgl.add_self_loop(graph)
         embedding = self.conv_0(graph, features)
-        
+
         for conv in self.layers:
             embedding = self.relu(embedding)
             embedding = conv(graph, embedding)
-        if not self.train:
+        if not self.do_train:
             return embedding.detach()
         
         logits = self.predict(embedding)

@@ -1,30 +1,19 @@
-import argparse
-from datetime import datetime
 import copy
 import os
-import pickle
-import random
-import time
-from dgl.batch import _batch_feat_dicts, batch
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn import metrics
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import random_split
 from dgl.dataloading import GraphDataLoader
 
-import dataset
-import model
-import utils
-import hyperparameters
+from reactome_gnn import model, dataset, hyperparameters
 
 
-def draw_loss_plot(train_loss, valid_loss, name):
+def draw_loss_plot(train_loss, valid_loss, name, save_dir):
     """Draw and save plot of train and validation loss over epochs.
+
     Parameters
     ----------
     train_loss : list
@@ -45,12 +34,14 @@ def draw_loss_plot(train_loss, valid_loss, name):
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig(f'loss_{name}.png')
+    save_path = os.path.join(save_dir, name)
+    plt.savefig(f'loss_{save_path}.png')
     plt.show()
 
 
-def train(hyperparams=None, data_path='demo/data/example'):
+def train(hyperparams=None, data_path='demo/data/example', plot=True):
     """Train a network which will produce the embeddings.
+
     Parameters
     ----------
     hyperparams : dict, optional
@@ -73,7 +64,8 @@ def train(hyperparams=None, data_path='demo/data/example'):
     batch_size = hyperparams['batch_size']
     device = hyperparams['device']
 
-    model_path = f'demo/data/model_dim{dim_latent}_lay{num_layers}.pth'
+    model_path = os.path.join(data_path, 'models')
+    model_path = os.path.join(model_path, f'model_dim{dim_latent}_lay{num_layers}.pth')
     
     # Create datasets
     ds = dataset.PathwayDataset(data_path)
@@ -82,17 +74,20 @@ def train(hyperparams=None, data_path='demo/data/example'):
     dl_valid = GraphDataLoader(ds_valid, batch_size=batch_size, shuffle=False)
 
     # Initialize networks and optimizer
-    net = model.GCNModel(dim_latent, num_layers, train=True).to(device)
+    net = model.GCNModel(dim_latent, num_layers, do_train=True).to(device)
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
-    best_net = model.GCNModel(dim_latent, num_layers, train=True)
+    best_net = model.GCNModel(dim_latent, num_layers, do_train=True)
     best_net.load_state_dict(copy.deepcopy(net.state_dict()))
 
     loss_per_epoch_train, loss_per_epoch_valid = [], []
 
+    # Start training
     for epoch in range(num_epochs):
+
+        # Training iteration
         loss_per_graph = []   
-        net.train() 
+        net.train()
         for data in dl_train:
             graph, name = data
             name = name[0]
@@ -105,34 +100,37 @@ def train(hyperparams=None, data_path='demo/data/example'):
             loss.backward()
             optimizer.step()
 
-            # Plot loss
             loss_per_graph.append(loss.item())
             
-
+        # Output loss
         running_loss = np.array(loss_per_graph).mean()
         loss_per_epoch_train.append(np.array(loss_per_graph).mean())
         print(f'Epoch: {epoch}\t\tTraining loss: {running_loss}')
         
-        loss_per_graph = []
-        net.eval()
-        for data in dl_valid:
-            graph, name = data
-            name = name[0]
-            logits = net(graph)
-            labels = graph.ndata['significance'].unsqueeze(-1)
-            loss = F.binary_cross_entropy_with_logits(logits, labels)
-            loss_per_graph.append(loss.item())
+        # Validation iteration
+        with torch.no_grad():
+            loss_per_graph = []
+            net.eval()
+            for data in dl_valid:
+                graph, name = data
+                name = name[0]
+                logits = net(graph)
+                labels = graph.ndata['significance'].unsqueeze(-1)
+                loss = F.binary_cross_entropy_with_logits(logits, labels)
+                loss_per_graph.append(loss.item())
             
+        # Output loss
         running_loss = np.array(loss_per_graph).mean()
         if len(loss_per_epoch_valid) > 0 and running_loss < min(loss_per_epoch_valid):
             best_net.load_state_dict(copy.deepcopy(net.state_dict()))
         loss_per_epoch_valid.append(running_loss)
         print(f'Epoch: {epoch}\t\tValidation loss: {running_loss}')
 
-    draw_loss_plot(loss_per_epoch_train, loss_per_epoch_valid, 'plot')
+    # Plot loss
+    if plot:
+        draw_loss_plot(loss_per_epoch_train, loss_per_epoch_valid, 'plot', data_path)
 
+    # Save the best model
     torch.save(best_net.state_dict(), model_path)
 
-
-if __name__ == '__main__':
-    train()
+    return model_path
