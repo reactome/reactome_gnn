@@ -83,11 +83,27 @@ def create_toy_study_with_markers(p_value=0.05, save=False,
     study_B = ['EGF', 'EGFR']
     study_C = ['RAS', 'MAP', 'IL10', 'STAT']
     study_D = ['RAS', 'MAP', 'STAT']
+    study_E = ['ABCB4', 'ECHS1', 'GLRX5', 'KCNQ2', 'PEX14']
+    study_F = ['SHROOM1', 'SMARCA2', 'TMEM62', 'CYP19A1']
+    study_G = ['BCR', 'CCL16', 'CPVL', 'GAA']
+    study_H = ['HMGCS2', 'ITIH', 'LAMB2', 'MAPK13']
+    study_I = ['NDUFA4', 'POR', 'RNF', 'SERPINA1']
+    study_J = ['SLC', 'TCHP', 'TIMM13', 'UBR4']
+    study_K = ['COL6A3', 'FH', 'GRHPR', 'IL1R1']
+    study_L = ['ITIH3', 'MAT1A', 'NUDT2', 'PPARGC1B', 'SCN1A']
 
     graph_A = create_network_from_markers(study_A, p_value, 'study_A')
     graph_B = create_network_from_markers(study_B, p_value, 'study_B')
     graph_C = create_network_from_markers(study_C, p_value, 'study_C')
     graph_D = create_network_from_markers(study_D, p_value, 'study_D')
+    graph_E = create_network_from_markers(study_E, p_value, 'study_E')
+    graph_F = create_network_from_markers(study_F, p_value, 'study_F')
+    graph_G = create_network_from_markers(study_G, p_value, 'study_G')
+    graph_H = create_network_from_markers(study_H, p_value, 'study_H')
+    graph_I = create_network_from_markers(study_I, p_value, 'study_I')
+    graph_J = create_network_from_markers(study_J, p_value, 'study_J')
+    graph_K = create_network_from_markers(study_K, p_value, 'study_K')
+    graph_L = create_network_from_markers(study_L, p_value, 'study_L')
 
     if save:
         save_dir = os.path.join(data_dir, 'raw')
@@ -95,8 +111,17 @@ def create_toy_study_with_markers(p_value=0.05, save=False,
         save_to_disk(graph_B, save_dir)
         save_to_disk(graph_C, save_dir)
         save_to_disk(graph_D, save_dir)
+        save_to_disk(graph_E, save_dir)
+        save_to_disk(graph_F, save_dir)
+        save_to_disk(graph_G, save_dir)
+        save_to_disk(graph_H, save_dir)
+        save_to_disk(graph_I, save_dir)
+        save_to_disk(graph_J, save_dir)
+        save_to_disk(graph_K, save_dir)
+        save_to_disk(graph_L, save_dir)
 
-    return graph_A, graph_B, graph_C, graph_D
+
+    return graph_A, graph_B, graph_C, graph_D, graph_E, graph_F, graph_G, graph_H, graph_I, graph_J, graph_K, graph_L
 
 
 def create_toy_study_with_names(save=False, data_dir='demo/data/example'):

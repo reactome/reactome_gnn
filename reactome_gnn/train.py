@@ -3,7 +3,9 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn import metrics
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from dgl.dataloading import GraphDataLoader
@@ -20,8 +22,8 @@ def draw_loss_plot(train_loss, valid_loss, save_path):
         List of training loss for each epoch
     valid_loss : list
         List of validation loss for each epoch
-    name : str
-        A name used for the file
+    save_path : str
+        A path where the plot will be saved
 
     Returns
     -------
@@ -33,6 +35,31 @@ def draw_loss_plot(train_loss, valid_loss, save_path):
     plt.title('Loss over epochs')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(f'{save_path}.png')
+    plt.show()
+
+
+def draw_f1_plot(train_f1, valid_f1, save_path):
+    """Draw and save plot of F1 score calculated during validation.
+
+    Parameters
+    ----------
+    f1 scores : list
+        List of f1 scores during validation
+    save_path : str
+        A path where the plot will be saved
+
+    Returns
+    -------
+    None
+    """
+    plt.figure()
+    plt.plot(train_f1, label='train')
+    plt.plot(valid_f1, label='validation')
+    plt.title('F1-score over epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('F1-score')
     plt.legend()
     plt.savefig(f'{save_path}.png')
     plt.show()
@@ -70,7 +97,8 @@ def train(hyperparams=None, data_path='demo/data/example', plot=True):
     
     # Create datasets
     ds = dataset.PathwayDataset(data_path)
-    ds_train, ds_valid = [ds[0], ds[1], ds[2]], [ds[3], ds[4]]
+    ds_train = [ds[0], ds[1], ds[2], ds[5], ds[6], ds[7], ds[8], ds[9]]
+    ds_valid = [ds[3], ds[4], ds[10], ds[11]]
     dl_train = GraphDataLoader(ds_train, batch_size=batch_size, shuffle=True)
     dl_valid = GraphDataLoader(ds_valid, batch_size=batch_size, shuffle=False)
 
@@ -82,62 +110,101 @@ def train(hyperparams=None, data_path='demo/data/example', plot=True):
     best_net.load_state_dict(copy.deepcopy(net.state_dict()))
 
     loss_per_epoch_train, loss_per_epoch_valid = [], []
+    f1_per_epoch_train, f1_per_epoch_valid = [], []
+
+    criterion = nn.BCEWithLogitsLoss(reduction='none')
+    weight = torch.tensor([0.00001, 0.99999]).to(device)
 
     # Start training
     for epoch in range(num_epochs):
 
         # Training iteration
-        loss_per_graph = []   
+        loss_per_graph = []
+        f1_per_graph = [] 
         net.train()
         for data in dl_train:
             graph, name = data
             name = name[0]
             logits = net(graph)
             labels = graph.ndata['significance'].unsqueeze(-1)
-            loss = F.binary_cross_entropy_with_logits(logits, labels)
+            weight_ = weight[labels.data.view(-1).long()].view_as(labels)
+
+            # Get weighted loss
+            loss = criterion(logits, labels)
+            loss_weighted = loss * weight_
+            loss_weighted = loss_weighted.mean()
 
             # Update parameters
             optimizer.zero_grad()
-            loss.backward()
+            loss_weighted.backward()
             optimizer.step()
 
-            loss_per_graph.append(loss.item())
+            # Append output metrics
+            loss_per_graph.append(loss_weighted.item())
+            preds = logits.sigmoid().squeeze(1).int()
+            labels = labels.squeeze(1).int()
+            f1 = metrics.f1_score(labels, preds)
+            f1_per_graph.append(f1)
             
-        # Output loss
+        # Output loss and f1
         running_loss = np.array(loss_per_graph).mean()
-        loss_per_epoch_train.append(np.array(loss_per_graph).mean())
+        running_f1 = np.array(f1_per_graph).mean()
+        loss_per_epoch_train.append(running_loss)
+        f1_per_epoch_train.append(running_f1)
 
-        if (epoch + 1) % 10 == 0:
-            print(f'Epoch: {epoch+1}\t\tTraining loss: {running_loss}')
+        if (epoch + 1) % 20 == 0:
+            print(f'Epoch: {epoch+1}\tTraining loss:\t\t{running_loss}')
         
         # Validation iteration
         with torch.no_grad():
             loss_per_graph = []
+            f1_per_graph = []
             net.eval()
             for data in dl_valid:
                 graph, name = data
                 name = name[0]
                 logits = net(graph)
                 labels = graph.ndata['significance'].unsqueeze(-1)
-                loss = F.binary_cross_entropy_with_logits(logits, labels)
-                loss_per_graph.append(loss.item())
+
+                # Get weighted loss
+                weight_ = weight[labels.data.view(-1).long()].view_as(labels)
+                loss = criterion(logits, labels)
+                loss_weighted = loss * weight_
+                loss_weighted = loss_weighted.mean()
+
+                # Append output metrics
+                loss_per_graph.append(loss_weighted.item())
+                preds = logits.sigmoid().squeeze(1).int()
+                labels = labels.squeeze(1).int()
+                f1 = metrics.f1_score(labels, preds)
+                f1_per_graph.append(f1)
             
-        # Output loss
+        # Output loss and f1
         running_loss = np.array(loss_per_graph).mean()
+        running_f1 = np.array(f1_per_graph).mean()
+        loss_per_epoch_valid.append(running_loss)
+        f1_per_epoch_valid.append(running_f1)
+
+        # Save the best model
         if len(loss_per_epoch_valid) > 0 and running_loss < min(loss_per_epoch_valid):
             best_net.load_state_dict(copy.deepcopy(net.state_dict()))
-        loss_per_epoch_valid.append(running_loss)
 
-        if (epoch+1) % 10 == 0:
-            print(f'Epoch: {epoch+1}\t\tValidation loss: {running_loss}')
+        if (epoch+1) % 20 == 0:
+            print(f'Epoch: {epoch+1}\tValidation loss:\t{running_loss}')
+            print(f'Epoch: {epoch+1}\tF1 score:\t\t{running_f1}\n')
 
     # Plot loss
     if plot:
         plot_path = os.path.join(data_path, 'figures')
-        plot_path = os.path.join(plot_path, f'plot_dim{dim_latent}_lay{num_layers}.png')
-        draw_loss_plot(loss_per_epoch_train, loss_per_epoch_valid, plot_path)
+        loss_path = os.path.join(plot_path, f'loss_dim{dim_latent}_lay{num_layers}.png')
+        f1_path = os.path.join(plot_path, f'f1_dim{dim_latent}_lay{num_layers}.png')
+        draw_loss_plot(loss_per_epoch_train, loss_per_epoch_valid, loss_path)
+        draw_f1_plot(f1_per_epoch_train, f1_per_epoch_valid, f1_path)
 
     # Save the best model
     torch.save(best_net.state_dict(), model_path)
 
     return model_path
+
+if __name__ == '__main__':
+    train()
