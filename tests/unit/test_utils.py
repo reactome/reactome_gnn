@@ -26,7 +26,7 @@ def test_create_network_from_names():
 
 def test_create_toy_study_with_markers_len():
     graphs = utils.create_toy_study_with_markers(save=False)
-    assert len(graphs) == 4
+    assert len(graphs) == 12
 
 
 def test_create_toy_study_with_names():
