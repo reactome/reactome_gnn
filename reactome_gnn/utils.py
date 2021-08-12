@@ -5,7 +5,7 @@ import dgl
 import torch
 from sklearn.cross_decomposition import CCA
 
-from reactome_gnn import marker, network, dataset, model
+from reactome_gnn import marker, network, dataset, model, train, hyperparameters
 
 
 def create_network_from_markers(marker_list, p_value, study):
@@ -55,7 +55,7 @@ def save_to_disk(graph, save_dir):
     pickle.dump(graph.graph_nx, open(save_path, 'wb'))
 
 
-def create_toy_study_with_markers(p_value=0.05, save_to_disk=False, 
+def create_toy_study_with_markers(p_value=0.05, save=False,
                                   data_dir='demo/data/example'):
     """Create networks for the predefined set of markers.
 
@@ -69,7 +69,7 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False,
     ----------
     p_value : float
         Threshold for p-value to determine significant pathways
-    save_to_disk : bool, optional
+    save : bool, optional
         Whether to save the created networks to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
@@ -83,23 +83,48 @@ def create_toy_study_with_markers(p_value=0.05, save_to_disk=False,
     study_B = ['EGF', 'EGFR']
     study_C = ['RAS', 'MAP', 'IL10', 'STAT']
     study_D = ['RAS', 'MAP', 'STAT']
-    
+    study_E = ['ABCB4', 'ECHS1', 'GLRX5', 'KCNQ2', 'PEX14']
+    study_F = ['SHROOM1', 'SMARCA2', 'TMEM62', 'CYP19A1']
+    study_G = ['BCR', 'CCL16', 'CPVL', 'GAA']
+    study_H = ['HMGCS2', 'ITIH', 'LAMB2', 'MAPK13']
+    study_I = ['NDUFA4', 'POR', 'RNF', 'SERPINA1']
+    study_J = ['SLC', 'TCHP', 'TIMM13', 'UBR4']
+    study_K = ['COL6A3', 'FH', 'GRHPR', 'IL1R1']
+    study_L = ['ITIH3', 'MAT1A', 'NUDT2', 'PPARGC1B', 'SCN1A']
+
     graph_A = create_network_from_markers(study_A, p_value, 'study_A')
     graph_B = create_network_from_markers(study_B, p_value, 'study_B')
     graph_C = create_network_from_markers(study_C, p_value, 'study_C')
     graph_D = create_network_from_markers(study_D, p_value, 'study_D')
+    graph_E = create_network_from_markers(study_E, p_value, 'study_E')
+    graph_F = create_network_from_markers(study_F, p_value, 'study_F')
+    graph_G = create_network_from_markers(study_G, p_value, 'study_G')
+    graph_H = create_network_from_markers(study_H, p_value, 'study_H')
+    graph_I = create_network_from_markers(study_I, p_value, 'study_I')
+    graph_J = create_network_from_markers(study_J, p_value, 'study_J')
+    graph_K = create_network_from_markers(study_K, p_value, 'study_K')
+    graph_L = create_network_from_markers(study_L, p_value, 'study_L')
 
-    if save_to_disk:
+    if save:
         save_dir = os.path.join(data_dir, 'raw')
         save_to_disk(graph_A, save_dir)
         save_to_disk(graph_B, save_dir)
         save_to_disk(graph_C, save_dir)
         save_to_disk(graph_D, save_dir)
+        save_to_disk(graph_E, save_dir)
+        save_to_disk(graph_F, save_dir)
+        save_to_disk(graph_G, save_dir)
+        save_to_disk(graph_H, save_dir)
+        save_to_disk(graph_I, save_dir)
+        save_to_disk(graph_J, save_dir)
+        save_to_disk(graph_K, save_dir)
+        save_to_disk(graph_L, save_dir)
 
-    return graph_A, graph_B, graph_C, graph_D
+
+    return graph_A, graph_B, graph_C, graph_D, graph_E, graph_F, graph_G, graph_H, graph_I, graph_J, graph_K, graph_L
 
 
-def create_toy_study_with_names(save_to_disk=False, data_dir='demo/data/example'):
+def create_toy_study_with_names(save=False, data_dir='demo/data/example'):
     """Create networks for the predefined set of pathway names.
 
     Given the four sets of pathway names (A, B, C, D), create four
@@ -110,7 +135,7 @@ def create_toy_study_with_names(save_to_disk=False, data_dir='demo/data/example'
 
     Parameters
     ----------
-    save_to_disk : bool, optional
+    save : bool, optional
         Whether to save the created networks to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
@@ -138,24 +163,30 @@ def create_toy_study_with_names(save_to_disk=False, data_dir='demo/data/example'
                "Degradation of beta-catenin by the destruction complex",
                "TCF dependent signaling in response to WNT",
                "Beta-catenin independent WNT signaling"]
-    
+    study_E = ["DNA Repair", "DNA Damage Bypass",
+               "Recognition of DNA damage by PCNA-containing replication complex",
+               "Translesion synthesis by Y family DNA polymerases bypasses lesions on DNA template",
+               "Translesion synthesis by REV1", "Translesion synthesis by POLK"]
+
     graph_A = create_network_from_names(study_A, 'study_A')
     graph_B = create_network_from_names(study_B, 'study_B')
     graph_C = create_network_from_names(study_C, 'study_C')
     graph_D = create_network_from_names(study_D, 'study_D')
+    graph_E = create_network_from_names(study_E, 'study_E')
 
-    if save_to_disk:
+    if save:
         save_dir = os.path.join(data_dir, 'raw')
         save_to_disk(graph_A, save_dir)
         save_to_disk(graph_B, save_dir)
         save_to_disk(graph_C, save_dir)
         save_to_disk(graph_D, save_dir)
+        save_to_disk(graph_E, save_dir)
 
-    return graph_A, graph_B, graph_C, graph_D
+    return graph_A, graph_B, graph_C, graph_D, graph_E
 
 
-def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=False,
-                      data_dir='demo/data/example'):
+def create_embeddings(load_model=True, save=False, data_dir='demo/data/example',
+                      hyperparams=None, plot=True):
     """Create embeddings for all the graphs stored on the disk.
 
     First the Pathway dataset is created which takes all the graphs
@@ -167,16 +198,17 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=
 
     Parameters
     ----------
-    dim_latent : int, optional
-        Dimension of the graph embeddings, default 16
-    num_layers : int, optional
-        Number of GCN layers in the GCNModel, deafult 1
     load_model : bool, optional
         Whether to load an old model or create a new one
-    save_to_disk : bool, optional
-        Whether to save the created networks to the disk, default: False
+    save : bool, optional
+        Whether to save the created embeddings to the disk, default: False
     data_dir : str, optional
         Relative path to where the data is stored
+    hyperparams : dict, optional
+        In case no hyperparameter dictionary is passed, default
+        hyperparameters are used
+    plot : bool, optional
+        In case of training the model, whether loss should be plotted
 
     Returns
     -------
@@ -187,24 +219,34 @@ def create_embeddings(dim_latent=8, num_layers=2, load_model=True, save_to_disk=
     """
     data = dataset.PathwayDataset(data_dir)
     emb_dir = os.path.abspath(os.path.join(data_dir, 'embeddings'))
-    model_path = os.path.abspath(os.path.join(data_dir, 'models/model.pth'))
     if not os.path.isdir(emb_dir):
         os.mkdir(emb_dir)
+
+
+    if hyperparams is None:
+        hyperparams = hyperparameters.get_hyperparameters()
+
+    dim_latent = hyperparams['dim_latent']
+    num_layers = hyperparams['num_layers']
+    
     net = model.GCNModel(dim_latent=dim_latent, num_layers=num_layers)
+
     if load_model:
+        model_path = os.path.abspath(os.path.join(data_dir, 'models/model.pth'))
         net.load_state_dict(torch.load(model_path))
     else:
-        torch.save(net.state_dict(), model_path)
+        model_path = train.train(hyperparams=hyperparams, data_path=data_dir, plot=plot)
+        net.load_state_dict(torch.load(model_path))
 
     embedding_dict = {}
     for idx in range(len(data)):
         graph, name = data[idx]
-        embedding = net(graph).detach()
+        embedding = net(graph)
         embedding_dict[name] = embedding
-        if save_to_disk:
+        if save:
             emb_path = os.path.join(emb_dir, f'{name[:-4]}.pth')
             torch.save(embedding, emb_path)
-    
+
     return embedding_dict
 
 
@@ -286,10 +328,10 @@ def fit_cca_on_toy_data(data_dir='demo/data/example'):
                "TCF dependent signaling in response to WNT",
                "Beta-catenin independent WNT signaling"]
 
-    emb_A = get_embedding('study_A', data_dir).detach()
-    emb_B = get_embedding('study_B', data_dir).detach()
-    emb_C = get_embedding('study_C', data_dir).detach()
-    emb_D = get_embedding('study_D', data_dir).detach()
+    emb_A = get_embedding('study_A', data_dir)
+    emb_B = get_embedding('study_B', data_dir)
+    emb_C = get_embedding('study_C', data_dir)
+    emb_D = get_embedding('study_D', data_dir)
 
     stids = pickle.load(open(os.path.join(data_dir, 'info/sorted_stid_list.pkl'), 'rb'))
     name_to_id = pickle.load(open(os.path.join(data_dir, 'info/name_to_id.pkl'), 'rb'))

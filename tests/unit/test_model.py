@@ -10,10 +10,6 @@ graph = dgl.load_graphs('demo/data/example/processed/study_A.dgl')[0][0]
 embedding = net(graph)
 
 
-def test_embedder():
-    assert isinstance(net.embedder, nn.Module)
-
-
 def test_linear():
     assert isinstance(net.linear, nn.Module)
 
